@@ -1,0 +1,28 @@
+uf_codigo;uf_nome;regiao
+11;Rondonia;N
+12;Acre;N
+13;Amazonas;N
+14;Roraima;N
+15;Para;N
+16;Amapa;N
+17;Tocantins;N
+21;Maranhao;NE
+22;Piaui;NE
+23;Ceara;NE
+24;Rio Grande do Norte;NE
+25;Paraiba;NE
+26;Pernambuco;NE
+27;Alagoas;NE
+28;Sergipe;NE
+29;Bahia;NE
+31;Minas Gerais;SE
+32;Espirito Santo;SE
+33;Rio de Janeiro;SE
+35;Sao Paulo;SE
+41;Parana;S
+42;Santa Catarina;S
+43;Rio Grande do Sul;S
+50;Mato Grosso do Sul;CO
+51;Mato Grosso;CO
+52;Goias;CO
+53;Distrito Federal;CO

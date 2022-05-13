@@ -1,0 +1,249 @@
+---
+title: 'Curso POF: Aula 2'
+author: "Pedro Rubin"
+date: '2022-05-10'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE}
+library(knitr)
+hook_output <- knit_hooks$get("output")
+knit_hooks$set(output = function(x, options) {
+  lines <- options$output.lines
+  if (is.null(lines)) {
+    return(hook_output(x, options))  # pass to default hook
+  }
+  x <- unlist(strsplit(x, "\n"))
+  more <- "..."
+  if (length(lines)==1) {        # first n lines
+    if (length(x) > lines) {
+      # truncate the output, but add ....
+      x <- c(head(x, lines), more)
+    }
+  } else {
+    x <- c(more, x[lines], more)
+  }
+  # paste these lines together
+  x <- paste(c(x, ""), collapse = "\n")
+  hook_output(x, options)
+})
+``` 
+
+# Domicílios, Unidades de Consumo e Pessoas
+
+Na aula passada, vimos que os domicílios são a unidade amostral, enquando as unidades de consumo (UC) são a unidade básica de pesquisa.
+Em linhas gerais, isso significa que a seleção de pessoas entrevistadas pela POF se dá pela seleção dos domicílio, no procedimento descrito anteriormente. E que as informações da pesquisa são agregadas, no nível mais básico, por unidades de consumo. Ou seja, ao contrário da PNAD Contínua Anual, na qual a renda per capita (por exemplo) significa a renda média dos moradores de um mesmo domicílio, na POF ela significa a renda média dos membros da unidade de consumo.
+
+Um domicílio contém ao menos uma unidade de consumo, e toda unidade de consumo pertence a um e apenas um domicílio. Analogamente, uma unidade de consumo contém ao menos uma pessoa, e toda pessoa pertence a uma e apenas uma unidade de consumo.
+
+## Um exemplo prático
+
+Nessa discussão, dois registros são centrais. 
+O primeiro é DOMICÍLIO, que contém dados sobre todos os domicílios da amostra, como água corrente, coleta de lixo e energia elétrica. Nesse registro, cada linha é um domicílio (o total de linhas é o total de domicílios na amostra da POF). 
+O segundo é MORADOR, que contém dados de todas as pessoas da amostra, como idade, anos de estudo e se lancha na creche. Nesse registro, cada linha é uma pessoa, e o total de linhas é o total de pessoas na amostra da POF.
+Não há um registro "unidades de consumo".
+
+Assim, precisamos criar indicadores que permitam identificar os domicílios, unidades de consumo e pessoas entre os diferentes registros da POF (no último caso, nem sempre será possível).
+
+Primeiro, vamos carregar os dois registros da POF
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+pof_domicilio <- read_rds("./dados/pof_domicilio.rds")
+pof_morador <- read_rds("./dados/pof_morador.rds")
+```
+
+Como a pof_domicilio tem o domicílio como maior nível de desagregação, só poderemos criar um identificador de domicílio (*id_dom*). Basicamente o id_dom é composto pelo identificador da UPA e pelo número do domicílio naquela UPA.
+
+A função `str_c` agrupa conjuntos de caracteres. É semelhante ao *CONCATENAR* do Excel.
+A função `n_distinct` retorna o número de valores distintos da variável e `n` retorna o número de elementos (no caso de um df, o número de linhas)
+
+```{r}
+pof_domicilio <- pof_domicilio %>% 
+  mutate(id_dom = str_c(COD_UPA, NUM_DOM))
+
+pof_domicilio %>% 
+  summarise(numero_domicilios = n_distinct(id_dom),
+            numero_linhas = n())
+```
+
+Como podemos ver, os números são iguais.
+
+Agora na pof_morador, podemos criar identificadores de domicílio (*id_dom*), de unidade de consumo (*id_uc*) e de pessoas (*id_pes*).
+
+```{r}
+pof_morador <- pof_morador %>% 
+  mutate(id_dom = str_c(COD_UPA, NUM_DOM),
+         id_uc  = str_c(COD_UPA, NUM_DOM, NUM_UC),
+         id_pes = str_c(COD_UPA, NUM_DOM, NUM_UC, COD_INFORMANTE))
+
+pof_morador %>% 
+  summarise(numero_domicilios = n_distinct(id_dom),
+            numero_uc = n_distinct(id_uc),
+            numero_pessoas = n_distinct(id_pes),
+            numero_linhas = n())
+```
+
+O número de domicílios é o mesmo do registro pof_domicílios - está correto. Mas o número de pessoas não está igual ao número de linhas. Qual foi o erro?
+O erro é um problema no tamanho das variáveis *NUM_DOM*, *NUM_UC* e *COD_INFORMANTE*. 
+
+```{r, message = FALSE, warning = FALSE, output.lines=11}
+pof_morador %>% 
+  group_by(id_pes) %>% 
+  mutate(x = n()) %>% 
+  ungroup() %>% 
+  filter(x > 1) %>% 
+  select(COD_UPA, NUM_DOM, NUM_UC, COD_INFORMANTE, id_pes) %>% 
+  arrange(id_pes)
+```
+
+Pegando as primeiras duas linhas como exemplo, vemos que o erro é causado pela combinação do mesmo valor para `COD_UPA` e `NUM_UC` com, em um caso `NUM_DOM == 11` e `COD_INFORMANTE == 1` e, no outro, `NUM_DOM == 1` e `COD_INFORMANTE == 11`, gerando assim o mesmo `id_pes` para duas pessoas diferentes.
+
+Para resolver isso, basta termos todos os valores de *NUM_DOM*, *NUM_UC* e *COD_INFORMANTE* com dois dígitos (01 ao invés de 1). Lembrando que precisamos dessa alteração em todos os registros da POF, pois esses indicadores são nossas chaves para agregar as diferentes tabelas.
+
+Fazemos então
+```{r}
+pof_domicilio <- pof_domicilio %>% 
+  mutate(NUM_DOM = str_pad(NUM_DOM, 2, "left", "0"),
+         id_dom = str_c(COD_UPA, NUM_DOM))
+
+pof_morador <- pof_morador %>% 
+  mutate(NUM_DOM = str_pad(NUM_DOM, 2, "left", "0"),
+         NUM_UC = str_pad(NUM_UC, 2, "left", "0"),
+         COD_INFORMANTE = str_pad(COD_INFORMANTE, 2, "left", "0"),
+         id_dom = str_c(COD_UPA, NUM_DOM),
+         id_uc  = str_c(COD_UPA, NUM_DOM, NUM_UC),
+         id_pes = str_c(COD_UPA, NUM_DOM, NUM_UC, COD_INFORMANTE))
+
+pof_domicilio %>% 
+  summarise(numero_domicilios = n_distinct(id_dom),
+            numero_linhas = n())
+
+pof_morador %>% 
+  summarise(numero_domicilios = n_distinct(id_dom),
+            numero_uc = n_distinct(id_uc),
+            numero_pessoas = n_distinct(id_pes),
+            numero_linhas = n())
+```
+
+Problema resolvido. De fato, é tedioso fazer isso toda vez que for ler a POF. No entanto, é importante mostrar pequenos erros que podem ter efeitos negativos na nossa análise. 
+
+## Checando o número de UCs
+
+Para termos certeza de que estamos usando o número certo de unidades de consumo e de pessoas, podemos tentar replicar algumas tabelas do SIDRA. Como exemplo, vamos fazer o total de famílias e o tamanho médio de famílias para o Brasil e para a Paraíba. A tabela de referência no SIDRA é a 6977 e pode ser acessada [clicando aqui](https://sidra.ibge.gov.br/tabela/6977).
+
+```{r}
+pof_morador %>% 
+  group_by(id_uc) %>% 
+  mutate(n_uc = n(),
+         PESO_FINAL = as.numeric(PESO_FINAL)) %>% 
+  ungroup() %>% 
+  filter(V0306 == "1") %>% 
+  summarise(total_uc = sum(PESO_FINAL),
+            tamanho_medio = round(sum(n_uc*PESO_FINAL)/sum(PESO_FINAL),2))
+
+pof_morador %>% 
+  filter(UF == "25") %>% 
+  group_by(id_uc) %>% 
+  mutate(n_uc = n(),
+         PESO_FINAL = as.numeric(PESO_FINAL)) %>% 
+  ungroup() %>% 
+  filter(V0306 == "1") %>% 
+  summarise(total_uc = sum(PESO_FINAL),
+            tamanho_medio = round(sum(n_uc*PESO_FINAL)/sum(PESO_FINAL),2))
+
+
+```
+
+## Exemplo de integração entre diferentes registros
+
+Antes de falar sobre como calcular as despesas, vale demonstrar a integração entre os diferentes registros.
+Para analisarmos o valor e composição de despesas de diferentes grupos populacionais, precisamos de informações de pessoas, famílias e domicílios. Assim, é preciso integrar as informações de despesa, que estão nos registros *Aluguel estimado*, *Caderneta coletiva*, *Despesa coletiva*, *Despesa individual*, *Rendimento do trabalho* e *Outros rendimentos* aos registros *Morador* e *Domicílio*. Isso é feito por meio das variáveis indicadoras `id_dom`  e `id_uc`. Vamos usar como exemplo os registros *Morador* e *Aluguel estimado*.
+
+```{r}
+pof_aluguel_estimado <- read_rds("./dados/pof_aluguel_estimado.rds") %>% 
+  mutate(NUM_DOM = str_pad(NUM_DOM, 2, "left", "0"),
+         NUM_UC = str_pad(NUM_UC, 2, "left", "0"),
+         id_dom = str_c(COD_UPA, NUM_DOM),
+         id_uc  = str_c(COD_UPA, NUM_DOM, NUM_UC))
+
+pof_join <- pof_morador %>% 
+  left_join(pof_aluguel_estimado, by = "id_uc")
+```
+
+Percebam que, aqui, eu usei o `left_join`, com *pof_morador* no primeiro argumento. Isso vem porque queremos preservar todas as linhas dessa tabela, para podermos separar os gastos por características das pessoas e das famílias.
+
+# Despesas
+
+Para começar a olhar as despesas, temos três arquivos centrais: 
+
+* *memoria_de_calculo/Indice_Despesa.xls*
+* *documentacao/Cadastro de Produtos.xls*
+* *tradutores/Tradutor_Despesa_Geral.xls*
+
+```{r}
+indice <- readxl::read_xls("./memoria_de_calculo/Indice_Despesa.xls")
+tradutor <- readxl::read_xls("./tradutores/Tradutor_Despesa_Geral.xls")
+cadastro <- readxl::read_xls("./documentacao/Cadastro de Produtos.xls", 
+                             col_types = "text")
+```
+
+A tabela indice apenas relaciona o nível de desagregação da despesa com sua respectiva descrição.
+
+```{r, message = FALSE, warning = FALSE, output.lines=9}
+indice
+```
+
+O cadastro de produtos, por sua vez, relaciona o código do produto com sua respectiva descrição e o quadro no qual o produto se encontra.
+```{r, message = FALSE, warning = FALSE, output.lines=9}
+cadastro
+```
+
+Por fim, a tabela mais importante para nós é a tradutor. 
+
+```{r}
+indice <- readxl::read_xls("./memoria_de_calculo/Indice_Despesa.xls") %>% 
+  mutate(num_char = nchar(NIVEL),
+         cod_par = case_when(nchar(NIVEL) == 1 ~ "0",
+                             nchar(NIVEL) == 2 ~ str_sub(NIVEL,1,-2),
+                             nchar(NIVEL) == 4 ~ str_sub(NIVEL,1,-3),
+                             nchar(NIVEL) == 6 ~ str_sub(NIVEL,1,-3),
+                             nchar(NIVEL) == 7 ~ str_sub(NIVEL,1,-2)
+         ),
+         NIVEL = as.numeric(NIVEL),
+         DESCRICAO = case_when(DESCRICAO == "OUTRAS" ~ str_c(DESCRICAO," ",NIVEL),
+                               TRUE ~ DESCRICAO)) %>% 
+  filter(is.na(cod_par) == F) %>% 
+  mutate(x = match(cod_par, NIVEL),
+         desc_par = case_when(NIVEL == "0" ~ "",
+                              TRUE ~ DESCRICAO[x]))
+
+indice_geral <- indice %>% 
+  filter(num_char <= 4)
+
+indice_consumo <- indice %>% 
+  filter(num_char >= 3 | (num_char == 2 & NIVEL == "11")) %>% 
+  filter(cod_par != 12) %>% 
+  mutate(desc_par = case_when(NIVEL == "11" ~ "",
+                              TRUE ~ desc_par))
+
+library(plotly)
+fig_geral <- plot_ly(
+  type="treemap",
+  labels=indice_geral$DESCRICAO %>% stringr::str_wrap(width = 15),
+  parents=indice_geral$desc_par %>% stringr::str_wrap(width = 15),
+  textposition = "middle center"
+)
+
+fig_consumo <- plot_ly(
+  type="treemap",
+  labels=indice_consumo$DESCRICAO %>% stringr::str_wrap(width = 15),
+  parents=indice_consumo$desc_par %>% stringr::str_wrap(width = 15),
+  textposition = "middle center"
+)
+fig_geral
+fig_consumo
+```

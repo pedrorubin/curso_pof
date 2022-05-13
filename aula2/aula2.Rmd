@@ -191,21 +191,19 @@ cadastro <- readxl::read_xls("./documentacao/Cadastro de Produtos.xls",
                              col_types = "text")
 ```
 
+O cadastro de produtos relaciona o código do produto com sua respectiva descrição e o quadro no qual o produto se encontra.
+```{r, message = FALSE, warning = FALSE, output.lines=9}
+cadastro
+```
+
 A tabela indice apenas relaciona o nível de desagregação da despesa com sua respectiva descrição.
 
 ```{r, message = FALSE, warning = FALSE, output.lines=9}
 indice
 ```
 
-O cadastro de produtos, por sua vez, relaciona o código do produto com sua respectiva descrição e o quadro no qual o produto se encontra.
-```{r, message = FALSE, warning = FALSE, output.lines=9}
-cadastro
-```
-
-Por fim, a tabela mais importante para nós é a tradutor. 
-
-```{r}
-indice <- readxl::read_xls("./memoria_de_calculo/Indice_Despesa.xls") %>% 
+```{r, message = FALSE, warning = FALSE, echo=FALSE}
+indice <- indice %>% 
   mutate(num_char = nchar(NIVEL),
          cod_par = case_when(nchar(NIVEL) == 1 ~ "0",
                              nchar(NIVEL) == 2 ~ str_sub(NIVEL,1,-2),
@@ -247,3 +245,101 @@ fig_consumo <- plot_ly(
 fig_geral
 fig_consumo
 ```
+
+
+
+Por fim, a tabela mais importante para nós é a tradutor, pois ela contém todas as informações que precisamos para conduzir uma análise de despesa.
+```{r, message = F, warning = F, output.lines = 9}
+tradutor
+```
+
+## Códigos dos itens
+Na POF, cada item é registrado com um código de 7 dígitos, identificado pela variável V9001. Os dois primeiros dígitos são correspondentes ao quadro, enquanto os outros 5 são identificadores de cada item de despesa.
+Porém, olhando a tabela cadastro, vemos que alguns código possuem menos de 7 dígitos. Isso é causado pela mesma questão que aconteceu com as variáveis indicadoras. Se o número do quadro é 6 (por exemplo), o código fica com 6 dígitos (porque o dado não carrega como "06").
+Então, para evitar quaisquer problemas, vamos transformar todos os códigos em 7 dígitos
+```{r, message = F, warning = F, output.lines = 9}
+
+cadastro <- cadastro %>% 
+  janitor::clean_names() %>% 
+  mutate(codigo_7 = str_pad(codigo_do_produto, 7, "left", "0"))
+
+```
+
+A tabela tradutor também tem valores de código com menos de 7 dígitos. Em parte, isso também é causado por essa questão do número do quadro ter menos de 2 dígitos. No entanto, a principal questão é que não foram incluídos em 2 últimos dígitos de cada item. Essencialmente, itens muito semelhantes (ou da mesma natureza) foram agrupados nos códigos de 5 dígitos.
+Vamos ver alguns exemplos disso, usando a tabela cadastro.
+```{r, message = F, warning = F, output.lines = 13}
+
+cadastro <- cadastro %>% 
+  mutate(codigo_5 = str_sub(codigo_7, 1, -3))
+
+cadastro %>% 
+  group_by(codigo_5) %>% 
+  mutate(n = n()) %>% 
+  ungroup() %>% 
+  filter(n > 1) %>% 
+  arrange(n, codigo_5)
+
+```
+
+Como exemplos, temos *gás de botijão* e *gás de bujão* e *tinta (pequenos reparos)* e *verniz (pequenos reparos)*.
+
+Assim, precisamos transformar os códigos da tabela tradutor em 5 dígitos - e é esse que usaremos para analisar os dados da POF
+
+```{r, message = F, warning = F, output.lines = 9}
+
+tradutor <- tradutor %>% 
+  janitor::clean_names() %>% 
+  mutate(codigo = str_pad(codigo, 5, "left", "0"))
+
+```
+
+## Variáveis
+Agora que temos os códigos de 5 dígitos na tabela tradutor, falta uma informação para começarmos a analisar as despesas - a variável relevante de cada gasto.
+Basicamente, a POF analisa: 
+
+* Valor da despesa/aquisição - V8000_DEFLA
+* INSS e outras contribuições - V1904_DEFLA
+* Dedução com previdência pública - V531112_DEFLA
+* Dedução de Imposto de Renda - V531122_DEFLA
+* Dedução de ISS - V531132_DEFLA
+* Outras deduções - V8501_DEFLA
+
+Existem alguns itens que têm mais de uma variável - que representam gastos de categorias e classificações diferentes. Por exemplo, gastos de manutenção do lar com eletricista envolvem o valor da despesa (`V8000_DEFLA`), associado à categoria *Despesa Total > Despesas Correntes > Despesas de Consumo > Habitação > Manutenção do lar* e recolhimento de INSS (`V1904_DEFLA`), associado à categoria *Despesa Total > Despesas Correntes > Outras despesas correntes > Contribuições trabalhistas*.
+
+Assim, além do código, precisamos acertar a variável na hora de calcular as despesas.
+
+## Deflação e anualização
+
+Os últimos pontos antes de realizar a análise das despesas são a deflação e a anualização.
+Como dito na primeira aula, as informações da POF se distribuem ao longo de 24 meses, sendo estabelecido o dia 15 de janeiro de 2018 como data de refrência. Assim, todos os valores precisam ser deflacionados para representarem valores médios desta data. Por sorte, o IBGE já disponibiliza os valores deflacionados: são as variáveis que olhamos acima e que estão na tabela despesa.
+
+A anualização, por sua vez, vem do fato de existirem 4 períodos de referência para despesas: 7, 30 e 90 dias e 12 meses. Respectivamente, precisamos multiplicar o valor da despesa em cada um desses períodos por 52, 12, 4 ou 1 (variável `FATOR_ANUALIZACAO`). Para alguns itens de despesas de 12 meses (`FATOR_ANUALIZACAO == 1`), temos também o número de meses de realização da despesa (variável `V9011`).
+Para saber quais itens se encaixam nesse segundo caso, o dicionário de variáveis explicita os quadros que precisam da variável `V9011` - podemos também olhar no código fornecido pelo IBGE *memoria_de_calculo/R/Tabela de Despesa Geral.R*.
+
+OK! Agora temos tudo o que precisamos.
+
+# Lendo as despesas no R
+
+Basicamente, o processo se resume em:
+
+* Ler os arquivos de microdados
+* Construir os códigos de 5 dígitos de cada item
+* Calcular o valor anualizado 
+  + variável correta
+  + fator de anualização
+  + quando necessário, número de meses da despesa
+* Agregar as informações da forma conveniente 
+  + categorias de despesa
+  + individual, unidade de consumo ou domicílio
+  
+Como as possibilidades são virtualmente infinitas, vamos focar na [tabela 6715 do SIDRA](https://sidra.ibge.gov.br/tabela/6715).
+
+
+
+
+
+
+
+
+
+

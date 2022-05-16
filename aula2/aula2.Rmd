@@ -289,7 +289,9 @@ Assim, precisamos transformar os códigos da tabela tradutor em 5 dígitos - e �
 
 tradutor <- tradutor %>% 
   janitor::clean_names() %>% 
-  mutate(codigo = str_pad(codigo, 5, "left", "0"))
+  mutate(codigo = str_pad(codigo, 5, "left", "0"),
+         descricao_2 = case_when(descricao_2 == "Despesas de consumo" ~ "Despesas de Consumo",
+                                 TRUE ~ descricao_2))
 
 ```
 
@@ -334,10 +336,120 @@ Basicamente, o processo se resume em:
   
 Como as possibilidades são virtualmente infinitas, vamos focar na [tabela 6715 do SIDRA](https://sidra.ibge.gov.br/tabela/6715).
 
+## Lendo os arquivos de microdados
+Já vimos como ler os microdados e até ja criamos arquivos *.rds*. Em um momento futuro, podemos salvar ainda mais tempo e espaço criando arquivos *.rds* de microdados apenas com as colunas relevantes para a análise de despesa, mas isso fica na conta de caa um.
+O que precisa ser feito agora é saber quais os arquivos de microdados relevantes.
+
+Basicamente, precisamos de todos os registros da POF que possuem alguma das variáveis explicitadas na tabela tradutor. A saber:
+
+```{r}
+tradutor %>% 
+  distinct(variavel)
+```
+
+Podemos também olhar em *memoria_de_calculo > R > Tabela de Despesa Geral.R*.
+
+Os registros relevantes são:
+
+* Aluguel estimado
+* Caderneta coletiva
+* Despesa coletiva
+* Despesa individual
+* Rendimento do trabalho
+* Outros rendimentos
+
+Vamos carregá-los 
+```{r}
+pof_aluguel_estimado <- read_rds("./dados/pof_aluguel_estimado.rds")
+pof_caderneta_coletiva <- read_rds("./dados/pof_caderneta_coletiva.rds")
+pof_despesa_coletiva <- read_rds("./dados/pof_despesa_coletiva.rds")
+pof_despesa_individual <- read_rds("./dados/pof_despesa_individual.rds")
+pof_rendimento_trabalho <- read_rds("./dados/pof_rendimento_trabalho.rds")
+pof_outros_rendimentos <- read_rds("./dados/pof_outros_rendimentos.rds")
+```
+
+## Construindo os códigos de 5 dígitos de cada item
+A variável que tem o código dos itens é `V9001`. Antes de tudo, precisamos checar quantos dígitos temos nos dados originais:
+
+```{r}
+pof_aluguel_estimado %>% mutate(n_cod = nchar(V9001)) %>% distinct(n_cod)
+pof_caderneta_coletiva %>% mutate(n_cod = nchar(V9001)) %>% distinct(n_cod)
+pof_despesa_coletiva %>% mutate(n_cod = nchar(V9001)) %>% distinct(n_cod)
+pof_despesa_individual %>% mutate(n_cod = nchar(V9001)) %>% distinct(n_cod)
+pof_rendimento_trabalho %>% mutate(n_cod = nchar(V9001)) %>% distinct(n_cod)
+pof_outros_rendimentos %>% mutate(n_cod = nchar(V9001)) %>% distinct(n_cod)
+```
+
+Podemos ver que, exceto em alguns casos no registro *Despesa Coletiva*, temos 7 dígitos. Como discutimos anteriormente, para o caso geral, basta eliminar os 2 últimos para termos o código da mesma forma que está na tabela tradutor. Em relação aos itens com 6 dígitos, isso é causado (igual a antes) pela variável *QUADRO* ter apenas um dígito. Lembrando, os dois primeiros dígitos do código de item corresponde ao quadro. Mas quando o valor da variável *QUADRO* é menor que 10, é registrado apenas um dígito (6 ao invés de 06). Então precisamos colocar esse dígito adicional no início.
+Para confirmar:
+
+```{r}
+
+pof_despesa_coletiva %>% 
+  mutate(n_cod = nchar(V9001)) %>% 
+  filter(n_cod == 6) %>% 
+  distinct(QUADRO)
+
+```
+Assim,, fazemos:
+
+```{r}
+pof_aluguel_estimado <- pof_aluguel_estimado %>% 
+  mutate(codigo_5 = str_sub(V9001, 1, -3))
+
+pof_caderneta_coletiva <- pof_caderneta_coletiva %>% 
+  mutate(codigo_5 = str_sub(V9001, 1, -3))
+
+pof_despesa_coletiva <- pof_despesa_coletiva %>% 
+  mutate(V9001 = str_pad(V9001, 7, "left", "0")) %>% 
+  mutate(codigo_5 = str_sub(V9001, 1, -3))
+  
+pof_despesa_individual <- pof_despesa_individual %>% 
+  mutate(codigo_5 = str_sub(V9001, 1, -3))
+
+pof_rendimento_trabalho <- pof_rendimento_trabalho %>% 
+  mutate(codigo_5 = str_sub(V9001, 1, -3))
+
+pof_outros_rendimentos <- pof_outros_rendimentos %>% 
+  mutate(codigo_5 = str_sub(V9001, 1, -3))
+```
+
+Vamos checar se tudos têm 5 dígitos:
+
+```{r}
+pof_aluguel_estimado %>% mutate(n_cod = nchar(codigo_5)) %>% distinct(n_cod)
+pof_caderneta_coletiva %>% mutate(n_cod = nchar(codigo_5)) %>% distinct(n_cod)
+pof_despesa_coletiva %>% mutate(n_cod = nchar(codigo_5)) %>% distinct(n_cod)
+pof_despesa_individual %>% mutate(n_cod = nchar(codigo_5)) %>% distinct(n_cod)
+pof_rendimento_trabalho %>% mutate(n_cod = nchar(codigo_5)) %>% distinct(n_cod)
+pof_outros_rendimentos %>% mutate(n_cod = nchar(codigo_5)) %>% distinct(n_cod)
+```
+
+Aparentemente, tudo certo.
+
+## Calcular o valor anualizado
+Essa etapa é, na minha opinião, a mais problemática. Lembrando, precisamos saber a variável certa, multiplicar o fator de anualização e, quando necessário, multiplicar pelo número de meses da despesa.
 
 
+```{r}
+pof_aluguel_estimado_x <- pof_aluguel_estimado %>% 
+  left_join(tradutor, by = c("codigo_5" = "codigo"))
 
+pof_caderneta_coletiva_x <- pof_caderneta_coletiva %>% 
+  left_join(tradutor, by = c("codigo_5" = "codigo"))
 
+pof_despesa_coletiva_x <- pof_despesa_coletiva %>% 
+  left_join(tradutor, by = c("codigo_5" = "codigo"))
+  
+pof_despesa_individual_x <- pof_despesa_individual %>% 
+  left_join(tradutor, by = c("codigo_5" = "codigo"))
+
+pof_rendimento_trabalho_x <- pof_rendimento_trabalho %>% 
+  left_join(tradutor, by = c("codigo_5" = "codigo"))
+
+pof_outros_rendimentos_x <- pof_outros_rendimentos %>% 
+  left_join(tradutor, by = c("codigo_5" = "codigo"))
+```
 
 
 

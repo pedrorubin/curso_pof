@@ -327,13 +327,13 @@ Basicamente, o processo se resume em:
 * Ler os arquivos de microdados
 * Construir os códigos de 5 dígitos de cada item
 * Calcular o valor anualizado 
-  + variável correta
-  + fator de anualização
-  + quando necessário, número de meses da despesa
++ variável correta
++ fator de anualização
++ quando necessário, número de meses da despesa
 * Agregar as informações da forma conveniente 
-  + categorias de despesa
-  + individual, unidade de consumo ou domicílio
-  
++ categorias de despesa
++ individual, unidade de consumo ou domicílio
+
 Como as possibilidades são virtualmente infinitas, vamos focar na [tabela 6715 do SIDRA](https://sidra.ibge.gov.br/tabela/6715).
 
 ## Lendo os arquivos de microdados
@@ -403,7 +403,7 @@ pof_caderneta_coletiva <- pof_caderneta_coletiva %>%
 pof_despesa_coletiva <- pof_despesa_coletiva %>% 
   mutate(V9001 = str_pad(V9001, 7, "left", "0")) %>% 
   mutate(codigo_5 = str_sub(V9001, 1, -3))
-  
+
 pof_despesa_individual <- pof_despesa_individual %>% 
   mutate(codigo_5 = str_sub(V9001, 1, -3))
 
@@ -430,28 +430,286 @@ Aparentemente, tudo certo.
 ## Calcular o valor anualizado
 Essa etapa é, na minha opinião, a mais problemática. Lembrando, precisamos saber a variável certa, multiplicar o fator de anualização e, quando necessário, multiplicar pelo número de meses da despesa.
 
+O primeiro passo é juntar a tabela *tradutor* em todos os registros da POF. Isso faz com que tenhamos, para cada despesa, a(s) variável(is) relevante(s) e o grupos ao qual cada gasto pertence (V8000_DEFLA, V531122_DEFLA, V531132_DEFLA, V1904_DEFLA, V531112_DEFLA, V8501_DEFLA). 
+
+Lembrando que determinadas despesas possuem mais de uma variável associada (e, portanto, mais de um grupo de despesa). Nesses casos, quando fazemos o `left_join` com a tabela *tradutor*, teremos um aumento do número de linhas na nossa tabela final. Isso acontece porque um mesmo código de despesa está associado a tipos diferentes de despesa (no caso do rendimento do trabalho por exemplo, a desconto de previdência pública, de imposto de renda e outros).
+
+Mas esse é justamente o nosso objetivo. Antes de fazer o `join` com a tabela *tradutor*, temos:
 
 ```{r}
-pof_aluguel_estimado_x <- pof_aluguel_estimado %>% 
+tamanho_antes <- bind_rows(
+  pof_aluguel_estimado %>% 
+    summarise(nome = "aluguel_estimado",
+              n_linhas = n()),
+  pof_caderneta_coletiva %>% 
+    summarise(nome = "caderneta_coletiva",
+              n_linhas = n()),
+  pof_despesa_coletiva %>% 
+    summarise(nome = "despesa_coletiva",
+              n_linhas = n()),
+  pof_despesa_individual %>% 
+    summarise(nome = "despesa_individual",
+              n_linhas = n()),
+  pof_rendimento_trabalho %>% 
+    summarise(nome = "rendimento_trabalho",
+              n_linhas = n()),
+  pof_outros_rendimentos %>% 
+    summarise(nome = "outros_rendimentos",
+              n_linhas = n())
+)
+
+
+```
+
+Fazendo o join:
+
+```{r}
+pof_aluguel_estimado <- pof_aluguel_estimado %>% 
   left_join(tradutor, by = c("codigo_5" = "codigo"))
 
-pof_caderneta_coletiva_x <- pof_caderneta_coletiva %>% 
+pof_caderneta_coletiva <- pof_caderneta_coletiva %>% 
   left_join(tradutor, by = c("codigo_5" = "codigo"))
 
-pof_despesa_coletiva_x <- pof_despesa_coletiva %>% 
-  left_join(tradutor, by = c("codigo_5" = "codigo"))
-  
-pof_despesa_individual_x <- pof_despesa_individual %>% 
+pof_despesa_coletiva <- pof_despesa_coletiva %>% 
   left_join(tradutor, by = c("codigo_5" = "codigo"))
 
-pof_rendimento_trabalho_x <- pof_rendimento_trabalho %>% 
+pof_despesa_individual <- pof_despesa_individual %>% 
   left_join(tradutor, by = c("codigo_5" = "codigo"))
 
-pof_outros_rendimentos_x <- pof_outros_rendimentos %>% 
+pof_rendimento_trabalho <- pof_rendimento_trabalho %>% 
+  left_join(tradutor, by = c("codigo_5" = "codigo"))
+
+pof_outros_rendimentos <- pof_outros_rendimentos %>% 
   left_join(tradutor, by = c("codigo_5" = "codigo"))
 ```
 
+```{r}
+tamanho_depois <- bind_rows(
+  pof_aluguel_estimado %>% 
+    summarise(nome = "aluguel_estimado",
+              n_linhas = n()),
+  pof_caderneta_coletiva %>% 
+    summarise(nome = "caderneta_coletiva",
+              n_linhas = n()),
+  pof_despesa_coletiva %>% 
+    summarise(nome = "despesa_coletiva",
+              n_linhas = n()),
+  pof_despesa_individual %>% 
+    summarise(nome = "despesa_individual",
+              n_linhas = n()),
+  pof_rendimento_trabalho %>% 
+    summarise(nome = "rendimento_trabalho",
+              n_linhas = n()),
+  pof_outros_rendimentos %>% 
+    summarise(nome = "outros_rendimentos",
+              n_linhas = n())
+)
+
+left_join(tamanho_antes, tamanho_depois, by = "nome", suffix = c("_antes", "_depois"))
+
+```
+
+Os únicos registros que aumentaram o número de linhas foram: despesa coletiva e rendimento do trabalho. Em relação ao primeiro, o aumento é muito pequeno, pois ocorre apenas poucas despesas com manutenção do lar, como eletricista e mordomo (entre outros) para as quais há a despesa em si e recolhimento de INSS.
+Já para o rendimento o trabalho, o aumento é enorme, pois representa desconto de previdência, de IR e outros, muito mais comuns.
+
+Agora, precisamos criar uma coluna *valor* que contenha o valor único de cada código + grupo de despesa. Isso é feito através da coluna *variavel*, originalmente na tabela *tradutor*. Nos registros em que temos apenas uma variável relevante de despesa (as que não mudaram o número de linhas depois do `join`), basta criar uma nova coluna igual à já existente.
 
 
+```{r}
+pof_aluguel_estimado <- pof_aluguel_estimado %>% 
+  mutate(valor = V8000_DEFLA)
+
+pof_caderneta_coletiva <- pof_caderneta_coletiva %>% 
+  mutate(valor = V8000_DEFLA)
+
+pof_despesa_individual <- pof_despesa_individual %>% 
+  mutate(valor = V8000_DEFLA)
+
+pof_outros_rendimentos <- pof_outros_rendimentos %>% 
+  mutate(valor = V8501_DEFLA)
+```
+
+Nos dois casos especiais (despesa coletiva e rendimento do trabalho), precisamos relacionar a variável certa em cada linha. Para isso, vamos usar a função `case_when`:
+
+```{r}
+pof_despesa_coletiva <- pof_despesa_coletiva %>% 
+  mutate(valor = case_when(variavel == "V8000_DEFLA" ~ V8000_DEFLA,
+                           variavel == "V1904_DEFLA" ~ V1904_DEFLA))
+
+pof_rendimento_trabalho <- pof_rendimento_trabalho %>% 
+  mutate(valor = case_when(variavel == "V531112_DEFLA" ~ V531112_DEFLA,
+                           variavel == "V531122_DEFLA" ~ V531122_DEFLA,
+                           variavel == "V531132_DEFLA" ~ V531132_DEFLA))
+```
+
+Agora, para todos os elementos na coluna valor, precisamos multiplicar pelo fator de anualização:
+
+```{r}
+pof_aluguel_estimado <- pof_aluguel_estimado %>% 
+  mutate(valor = as.numeric(valor),
+         FATOR_ANUALIZACAO = as.numeric(FATOR_ANUALIZACAO)) %>% 
+  mutate(valor_fator_anu = valor*FATOR_ANUALIZACAO)
+
+pof_caderneta_coletiva <- pof_caderneta_coletiva %>%
+  mutate(valor = as.numeric(valor),
+         FATOR_ANUALIZACAO = as.numeric(FATOR_ANUALIZACAO)) %>% 
+  mutate(valor_fator_anu = valor*FATOR_ANUALIZACAO)
+
+pof_despesa_coletiva <- pof_despesa_coletiva %>% 
+  mutate(valor = as.numeric(valor),
+         FATOR_ANUALIZACAO = as.numeric(FATOR_ANUALIZACAO)) %>% 
+  mutate(valor_fator_anu = valor*FATOR_ANUALIZACAO)
+
+pof_despesa_individual <- pof_despesa_individual %>%
+  mutate(valor = as.numeric(valor),
+         FATOR_ANUALIZACAO = as.numeric(FATOR_ANUALIZACAO)) %>% 
+  mutate(valor_fator_anu = valor*FATOR_ANUALIZACAO)
+
+pof_rendimento_trabalho <- pof_rendimento_trabalho %>% 
+  mutate(valor = as.numeric(valor),
+         FATOR_ANUALIZACAO = as.numeric(FATOR_ANUALIZACAO)) %>% 
+  mutate(valor_fator_anu = valor*FATOR_ANUALIZACAO)
+
+pof_outros_rendimentos <- pof_outros_rendimentos %>%
+  mutate(valor = as.numeric(valor),
+         FATOR_ANUALIZACAO = as.numeric(FATOR_ANUALIZACAO)) %>% 
+  mutate(valor_fator_anu = valor*FATOR_ANUALIZACAO)
+```
+
+A última etapa é criar, de fato, o valor anualizado, multiplicando certas despesas pelo número de meses. Podemos saber quais são essas despesas olhando cada registro do dicionário de variáveis, na descrição da variável *V9011*. Lá diz quais os quadros cujos valores precisam ser multiplicados por essa variável.
+
+O registro caderneta individual não tem a variável *V9011*, então não há alteração a ser feita.
+Nos registros aluguel estimado e rendimento do trabalho, todas as despesas precisam ser multiplicadas por *V9011*
+Assim:
+
+```{r}
+pof_aluguel_estimado <- pof_aluguel_estimado %>% 
+  mutate(V9011 = as.numeric(V9011)) %>% 
+  mutate(valor_anualizado = valor_fator_anu*V9011)
+
+pof_caderneta_coletiva <- pof_caderneta_coletiva %>% 
+  mutate(valor_anualizado = valor_fator_anu)
+
+pof_despesa_coletiva <- pof_despesa_coletiva %>% 
+  mutate(V9011 = as.numeric(V9011)) %>% 
+  mutate(valor_anualizado = case_when(QUADRO %in% c("10","19") ~ valor_fator_anu*V9011,
+                                      TRUE ~ valor_fator_anu))
+
+pof_despesa_individual <- pof_despesa_individual %>%
+  mutate(V9011 = as.numeric(V9011)) %>% 
+  mutate(valor_anualizado = case_when(QUADRO %in% c("44","47","48","49","50") ~ valor_fator_anu*V9011,
+                                      TRUE ~ valor_fator_anu))
+
+pof_rendimento_trabalho <- pof_rendimento_trabalho %>% 
+  mutate(V9011 = as.numeric(V9011)) %>% 
+  mutate(valor_anualizado = valor_fator_anu*V9011)
+
+pof_outros_rendimentos <- pof_outros_rendimentos %>%
+  mutate(V9011 = as.numeric(V9011)) %>% 
+  mutate(valor_anualizado = case_when(QUADRO == "54" ~ valor_fator_anu*V9011,
+                                      TRUE ~ valor_fator_anu))
+```
+
+## Agregando as informações
+
+Agora já temos todas as informações de despesa. O que falta agora é juntar tudo em uma tabela só (que podemos salvar para não ter que repetir esse processo). De fato, agora o que precisamos dos registros com os quais temos trabalhado é apenas: indicador de uc, as categorias de despesa e o valor.
+
+```{r}
+pof_aluguel_estimado <- pof_aluguel_estimado %>%
+  mutate(NUM_DOM = str_pad(NUM_DOM, 2, "left", "0"),
+         NUM_UC = str_pad(NUM_UC, 2, "left", "0"),
+         id_dom = str_c(COD_UPA, NUM_DOM),
+         id_uc  = str_c(COD_UPA, NUM_DOM, NUM_UC)) %>% 
+  select(id_dom, id_uc, codigo_5, valor_anualizado,
+         nivel_0, descricao_0,
+         nivel_1, descricao_1,
+         nivel_2, descricao_2,
+         nivel_3, descricao_3,
+         nivel_4, descricao_4,
+         nivel_5, descricao_5)
+
+pof_caderneta_coletiva <- pof_caderneta_coletiva %>%
+  mutate(NUM_DOM = str_pad(NUM_DOM, 2, "left", "0"),
+         NUM_UC = str_pad(NUM_UC, 2, "left", "0"),
+         id_dom = str_c(COD_UPA, NUM_DOM),
+         id_uc  = str_c(COD_UPA, NUM_DOM, NUM_UC)) %>% 
+  select(id_dom, id_uc, codigo_5, valor_anualizado,
+         nivel_0, descricao_0,
+         nivel_1, descricao_1,
+         nivel_2, descricao_2,
+         nivel_3, descricao_3,
+         nivel_4, descricao_4,
+         nivel_5, descricao_5)
+
+pof_despesa_coletiva <- pof_despesa_coletiva %>%
+  mutate(NUM_DOM = str_pad(NUM_DOM, 2, "left", "0"),
+         NUM_UC = str_pad(NUM_UC, 2, "left", "0"),
+         id_dom = str_c(COD_UPA, NUM_DOM),
+         id_uc  = str_c(COD_UPA, NUM_DOM, NUM_UC)) %>% 
+  select(id_dom, id_uc, codigo_5, valor_anualizado,
+         nivel_0, descricao_0,
+         nivel_1, descricao_1,
+         nivel_2, descricao_2,
+         nivel_3, descricao_3,
+         nivel_4, descricao_4,
+         nivel_5, descricao_5)
+
+pof_despesa_individual <- pof_despesa_individual %>%
+  mutate(NUM_DOM = str_pad(NUM_DOM, 2, "left", "0"),
+         NUM_UC = str_pad(NUM_UC, 2, "left", "0"),
+         id_dom = str_c(COD_UPA, NUM_DOM),
+         id_uc  = str_c(COD_UPA, NUM_DOM, NUM_UC)) %>% 
+  select(id_dom, id_uc, codigo_5, valor_anualizado,
+         nivel_0, descricao_0,
+         nivel_1, descricao_1,
+         nivel_2, descricao_2,
+         nivel_3, descricao_3,
+         nivel_4, descricao_4,
+         nivel_5, descricao_5)
+
+pof_rendimento_trabalho <- pof_rendimento_trabalho %>%
+  mutate(NUM_DOM = str_pad(NUM_DOM, 2, "left", "0"),
+         NUM_UC = str_pad(NUM_UC, 2, "left", "0"),
+         id_dom = str_c(COD_UPA, NUM_DOM),
+         id_uc  = str_c(COD_UPA, NUM_DOM, NUM_UC)) %>% 
+  select(id_dom, id_uc, codigo_5, valor_anualizado,
+         nivel_0, descricao_0,
+         nivel_1, descricao_1,
+         nivel_2, descricao_2,
+         nivel_3, descricao_3,
+         nivel_4, descricao_4,
+         nivel_5, descricao_5)
+
+pof_outros_rendimentos <- pof_outros_rendimentos %>%
+  mutate(NUM_DOM = str_pad(NUM_DOM, 2, "left", "0"),
+         NUM_UC = str_pad(NUM_UC, 2, "left", "0"),
+         id_dom = str_c(COD_UPA, NUM_DOM),
+         id_uc  = str_c(COD_UPA, NUM_DOM, NUM_UC)) %>% 
+  select(id_dom, id_uc, codigo_5, valor_anualizado,
+         nivel_0, descricao_0,
+         nivel_1, descricao_1,
+         nivel_2, descricao_2,
+         nivel_3, descricao_3,
+         nivel_4, descricao_4,
+         nivel_5, descricao_5)
+```
+
+Vamos criar agora nosso df com todas as informações de despesa para nossa análise.
+
+```{r}
+pof_despesa <- bind_rows(pof_aluguel_estimado,
+                         pof_caderneta_coletiva,
+                         pof_despesa_coletiva,
+                         pof_despesa_individual,
+                         pof_rendimento_trabalho,
+                         pof_outros_rendimentos)
+```
 
 
+Por fim, vamos salvar essa tabela como *.rds*.
+
+```{r}
+pof_despesa %>% write_rds("./dados/pof_despesa.rds", compress = "gz")
+```
+
+Na próxima aula vamos juntar essa tabela de despesa com o registro *morador*e replicar [tabela 6715 do SIDRA](https://sidra.ibge.gov.br/tabela/6715).

@@ -620,7 +620,7 @@ pof_aluguel_estimado <- pof_aluguel_estimado %>%
          NUM_UC = str_pad(NUM_UC, 2, "left", "0"),
          id_dom = str_c(COD_UPA, NUM_DOM),
          id_uc  = str_c(COD_UPA, NUM_DOM, NUM_UC)) %>% 
-  select(id_dom, id_uc, codigo_5, valor_anualizado,
+  select(id_dom, id_uc, codigo_5, valor_anualizado, PESO_FINAL,
          nivel_0, descricao_0,
          nivel_1, descricao_1,
          nivel_2, descricao_2,
@@ -633,7 +633,7 @@ pof_caderneta_coletiva <- pof_caderneta_coletiva %>%
          NUM_UC = str_pad(NUM_UC, 2, "left", "0"),
          id_dom = str_c(COD_UPA, NUM_DOM),
          id_uc  = str_c(COD_UPA, NUM_DOM, NUM_UC)) %>% 
-  select(id_dom, id_uc, codigo_5, valor_anualizado,
+  select(id_dom, id_uc, codigo_5, valor_anualizado, PESO_FINAL,
          nivel_0, descricao_0,
          nivel_1, descricao_1,
          nivel_2, descricao_2,
@@ -646,7 +646,7 @@ pof_despesa_coletiva <- pof_despesa_coletiva %>%
          NUM_UC = str_pad(NUM_UC, 2, "left", "0"),
          id_dom = str_c(COD_UPA, NUM_DOM),
          id_uc  = str_c(COD_UPA, NUM_DOM, NUM_UC)) %>% 
-  select(id_dom, id_uc, codigo_5, valor_anualizado,
+  select(id_dom, id_uc, codigo_5, valor_anualizado, PESO_FINAL,
          nivel_0, descricao_0,
          nivel_1, descricao_1,
          nivel_2, descricao_2,
@@ -659,7 +659,7 @@ pof_despesa_individual <- pof_despesa_individual %>%
          NUM_UC = str_pad(NUM_UC, 2, "left", "0"),
          id_dom = str_c(COD_UPA, NUM_DOM),
          id_uc  = str_c(COD_UPA, NUM_DOM, NUM_UC)) %>% 
-  select(id_dom, id_uc, codigo_5, valor_anualizado,
+  select(id_dom, id_uc, codigo_5, valor_anualizado, PESO_FINAL,
          nivel_0, descricao_0,
          nivel_1, descricao_1,
          nivel_2, descricao_2,
@@ -672,7 +672,7 @@ pof_rendimento_trabalho <- pof_rendimento_trabalho %>%
          NUM_UC = str_pad(NUM_UC, 2, "left", "0"),
          id_dom = str_c(COD_UPA, NUM_DOM),
          id_uc  = str_c(COD_UPA, NUM_DOM, NUM_UC)) %>% 
-  select(id_dom, id_uc, codigo_5, valor_anualizado,
+  select(id_dom, id_uc, codigo_5, valor_anualizado, PESO_FINAL,
          nivel_0, descricao_0,
          nivel_1, descricao_1,
          nivel_2, descricao_2,
@@ -685,7 +685,7 @@ pof_outros_rendimentos <- pof_outros_rendimentos %>%
          NUM_UC = str_pad(NUM_UC, 2, "left", "0"),
          id_dom = str_c(COD_UPA, NUM_DOM),
          id_uc  = str_c(COD_UPA, NUM_DOM, NUM_UC)) %>% 
-  select(id_dom, id_uc, codigo_5, valor_anualizado,
+  select(id_dom, id_uc, codigo_5, valor_anualizado, PESO_FINAL,
          nivel_0, descricao_0,
          nivel_1, descricao_1,
          nivel_2, descricao_2,
@@ -702,7 +702,8 @@ pof_despesa <- bind_rows(pof_aluguel_estimado,
                          pof_despesa_coletiva,
                          pof_despesa_individual,
                          pof_rendimento_trabalho,
-                         pof_outros_rendimentos)
+                         pof_outros_rendimentos) %>% 
+  filter(is.na(nivel_0) == F)
 ```
 
 
@@ -712,4 +713,4 @@ Por fim, vamos salvar essa tabela como *.rds*.
 pof_despesa %>% write_rds("./dados/pof_despesa.rds", compress = "gz")
 ```
 
-Na próxima aula vamos juntar essa tabela de despesa com o registro *morador*e replicar [tabela 6715 do SIDRA](https://sidra.ibge.gov.br/tabela/6715).
+Na próxima aula vamos replicar a [tabela 6715 do SIDRA](https://sidra.ibge.gov.br/tabela/6715).

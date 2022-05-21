@@ -1,0 +1,108 @@
+---
+title: 'Curso POF: Aula 3'
+author: "Pedro Rubin"
+date: '2022-05-20'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE}
+library(knitr)
+hook_output <- knit_hooks$get("output")
+knit_hooks$set(output = function(x, options) {
+  lines <- options$output.lines
+  if (is.null(lines)) {
+    return(hook_output(x, options))  # pass to default hook
+  }
+  x <- unlist(strsplit(x, "\n"))
+  more <- "..."
+  if (length(lines)==1) {        # first n lines
+    if (length(x) > lines) {
+      # truncate the output, but add ....
+      x <- c(head(x, lines), more)
+    }
+  } else {
+    x <- c(more, x[lines], more)
+  }
+  # paste these lines together
+  x <- paste(c(x, ""), collapse = "\n")
+  hook_output(x, options)
+})
+``` 
+
+# Recapitulando
+No encontro anterior, fizemos o nosso df de despesas, juntando todos os gastos de todos os tipos para todas as uc. O próximo passo agora é agregar essas informações.
+A tabela [tabela 6715 do SIDRA](https://sidra.ibge.gov.br/tabela/6715) é composta pela despesa média mensal das famílias, por tipo de despesa. Para replicá-la, precisamos nos certificar de que temos todas as UCs em nosso df. O único jeito de fazer isso é checando com o registro *morador*
+
+```{r, message = FALSE, warning=FALSE}
+library(tidyverse)
+```
+```{r}
+# pof_despesa <- read_rds("./dados/pof_despesa.rds")
+pof_morador <- read_rds("./dados/pof_morador.rds") %>% 
+  mutate(NUM_DOM = str_pad(NUM_DOM, 2, "left", "0"),
+         NUM_UC = str_pad(NUM_UC, 2, "left", "0"),
+         COD_INFORMANTE = str_pad(COD_INFORMANTE, 2, "left", "0"),
+         id_dom = str_c(COD_UPA, NUM_DOM),
+         id_uc  = str_c(COD_UPA, NUM_DOM, NUM_UC),
+         id_pes = str_c(COD_UPA, NUM_DOM, NUM_UC, COD_INFORMANTE))
+```
+
+Vejamos quantas UCs temos em `pof_despesa` e em `pof_morador`:
+
+```{r}
+bind_rows(pof_despesa %>% summarise(tipo = "pof_despesa",
+                                    n_uc = n_distinct(id_uc)),
+          pof_despesa %>% summarise(tipo = "pof_morador",
+                                    n_uc = n_distinct(id_uc)))
+```
+
+É o mesmo número! Podemos checar também com:
+```{r}
+setdiff(pof_despesa %>% select(id_uc), pof_morador %>% select(id_uc))
+```
+
+Como é um conjunto vazio, temos todas as UCs em `pof_despesa`.
+
+Basicamente, o que precisamos agora é agregar as informações por UC e pelos tipos de despesa que queremos. De início, vamos calcular a despesa total média mensal por UC:
+
+Primeiro, queremos saber qual o gasto total de cada unidade de consumo. Vamos então usar o `group_by` para pegar o total de cada família por cada tipo de despesa (no caso, temos apenas um tipo: despesa total). Temos que colocar `na.rm = TRUE` na soma - caso contrário, teremos `NA` para algumas famílias - e dividir por 12 para pegar o gasto mensal. Lembrando que a função `summarise` preserva apenas as colunas dos grupos (id_uc e nivel_0) e as que criamos. Porém, precisamos do peso amostral de cada uc. Por isso, precisamos incluir uma chamada que preserve a variável `PESO_FINAL`. A função `unique` retorna apenas o valor único da variável (quando este existe). Como o peso amostral é o mesmo para todos os membro de uma uc, como já estamos agrupando por família, temos um valor de `PESO_FINAL` em cada grupo.
+
+
+```{r, message=FALSE, warning = FALSE}
+
+pof_despesa_pt1 <- pof_despesa %>% 
+  mutate(PESO_FINAL = as.numeric(PESO_FINAL)) %>% 
+  group_by(id_uc, nivel_0) %>% 
+  summarise(valor_mensal_uc = sum(valor_anualizado, na.rm = T)/12,
+            PESO_FINAL = unique(PESO_FINAL)) %>% 
+  ungroup()
+
+```
+
+Agora temos um df com 58039 linhas (uma para cada família) e colunas com o valor da despesa mensal e o peso amostral, basta apenas fazer uma média ponderada
+
+```{r}
+
+pof_despesa_pt2 <- pof_despesa_pt1 %>% 
+  summarise(valor_medio_mensal = sum(valor_mensal_uc * PESO_FINAL)/ 
+              sum(PESO_FINAL))
+
+pof_despesa_pt2
+```
+
+E pronto! Temos aqui nosso resultado.
+
+
+
+
+
+
+
+
+
+
+

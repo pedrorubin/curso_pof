@@ -276,7 +276,7 @@ pnadc_regiao %>%
 
 # Parte 1.5 (Ponte) - tópicos em boas práticas
 
-Agora que revisamos o básico de manipulação de dados, acho importante tocar em alguns pontos do uso do R. Ao contrário da PNADC, que possui um arquivo de microdados para cada realização da pesquisa, a POF possui diversos - o que torna necessária uma discussão sobre a organização das pastas. Adicionalmente, diversos usos da POF (inclusive rendimentos e despesas) precisam da combinação desses diferentes arquivos de microdados. Entçao, é muito provável que o processo precise ser quebrado em diversas etapas, o que requer também uma maior organização dos scripts e dos dados.
+Agora que revisamos o básico de manipulação de dados, acho importante tocar em alguns pontos do uso do R. Ao contrário da PNADC, que possui um arquivo de microdados para cada realização da pesquisa, a POF possui diversos - o que torna necessária uma discussão sobre a organização das pastas. Adicionalmente, diversos usos da POF (inclusive rendimentos e despesas) precisam da combinação desses diferentes arquivos de microdados. Então, é muito provável que o processo precise ser quebrado em diversas etapas, o que requer também uma maior organização dos scripts e dos dados.
 
 Em linhas gerais, queremos que nosso processos em R sejam reprodutíveis, auto-contidos e transportáveis (no espaço e no tempo)
 
@@ -293,7 +293,7 @@ A continuação do ponto anterior - sempre começar o R do zero - é que é uma 
 Para isso, é muito comum ver o seguinte comando no início do código: `rm(list = ls())`.
 Isso é um problema porque, basicamente, esse comando não reinicia o R de fato. Ele apenas deleta objetos criados pelo usuário. Todos os pacotes já carregados continuam ativos, assim como diversas outras alterações. Não há nada de errado com `rm(list = ls())` - a questão é achar que isso garante a limpeza completa do R.
 
-Como exemplo, suponho que você está trabalhando com um script, no qual carrega o tidyverse `library(tidyverse)`. No meio do caminho, você decide criar um novo script para realizar cálculos auxiliares. Para "reiniciar" o R, você usa `rm(list = ls())`. Como vimos anteriormente, isso não coloca o R do zero, então as funções do tidyverse continuam ativas mesm sem um chamado `library(tidyverse)` nesse segundo script - por exemplo, é possível criar uma coluna com a função mutate.
+Como exemplo, suponho que você está trabalhando com um script, no qual carrega o tidyverse `library(tidyverse)`. No meio do caminho, você decide criar um novo script para realizar cálculos auxiliares. Para "reiniciar" o R, você usa `rm(list = ls())`. Como vimos anteriormente, isso não coloca o R do zero, então as funções do `tidyverse` continuam ativas mesmo sem um chamado `library(tidyverse)` nesse segundo script - por exemplo, é possível criar uma coluna com a função mutate.
 
 Se por acaso você decide revisitar esse segundo script em outro momento (ou envia a uma pessoa), o script não vai rodar! Porque a função mutate não existe sem que o tidyverse (mais especificamente, o dplyr) esteja carregado! Isso pode criar um enorme problema, dependendo do tamanho do script e dos pacotes utilizados. Tudo isso poderia ter sido evitado com o reinício correto do R - o problema no segundo script seria encontrado (e possivelmente resolvido) na hora.
 

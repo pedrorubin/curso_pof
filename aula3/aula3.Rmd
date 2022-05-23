@@ -33,6 +33,25 @@ knit_hooks$set(output = function(x, options) {
 })
 ``` 
 
+```{css, echo=FALSE}
+.spoiler_dica {
+  visibility: hidden;
+}
+
+.spoiler_dica::before {
+  visibility: visible;
+  content: "Passe o mouse aqui para ver uma dica"
+}
+
+.spoiler_dica:hover {
+  visibility: visible;
+}
+
+.spoiler_dica:hover::before {
+  display: none;
+}
+```
+
 # Recapitulando
 No encontro anterior, fizemos o nosso df de despesas, juntando todos os gastos de todos os tipos para todas as uc. O próximo passo agora é agregar essas informações.
 A tabela [tabela 6715 do SIDRA](https://sidra.ibge.gov.br/tabela/6715) é composta pela despesa média mensal das famílias, por tipo de despesa. Para replicá-la, precisamos nos certificar de que temos todas as UCs em nosso df. O único jeito de fazer isso é checando com o registro *morador*
@@ -41,7 +60,7 @@ A tabela [tabela 6715 do SIDRA](https://sidra.ibge.gov.br/tabela/6715) é compos
 library(tidyverse)
 ```
 ```{r}
-# pof_despesa <- read_rds("./dados/pof_despesa.rds")
+pof_despesa <- read_rds("./dados/pof_despesa.rds")
 pof_morador <- read_rds("./dados/pof_morador.rds") %>% 
   mutate(NUM_DOM = str_pad(NUM_DOM, 2, "left", "0"),
          NUM_UC = str_pad(NUM_UC, 2, "left", "0"),
@@ -96,9 +115,44 @@ pof_despesa_pt2
 
 E pronto! Temos aqui nosso resultado.
 
+Vamos fazer mais um exemplo: o gasto médio por família em Habitação e Vestuário. Primeiro, vamos ver qual o código dessas 2 categorias
+
+```{r}
+pof_despesa %>% 
+  distinct(nivel_3, .keep_all = T) %>% 
+  select(nivel_3, descricao_3) %>% 
+  arrange(nivel_3)
+
+```
+Logo, 
+
+```{r, message = F, warning=F}
+pof_despesa %>% 
+  mutate(PESO_FINAL = as.numeric(PESO_FINAL)) %>% 
+  group_by(id_uc, nivel_3) %>% 
+  summarise(descricao_3 = unique(descricao_3),
+            valor_mensal_uc = sum(valor_anualizado, na.rm = T)/12,
+            PESO_FINAL = unique(PESO_FINAL)) %>% 
+  ungroup() %>% 
+  group_by(nivel_3) %>%
+  filter(nivel_3 %in% c(1102,1103)) %>%
+  summarise(valor_medio_mensal = sum(valor_mensal_uc * PESO_FINAL)/
+              sum(PESO_FINAL))
+
+```
+
+Deu errado! Alguém tem alguma ideia do que aconteceu?
+Tente identificar onde está o erro no código acima.
+
+[O erro está em `group_by(nivel_3) %>% filter(nivel_3 %in% c(1102,1103))`. Cheque o que acontece com o número de UCs]{.spoiler_dica}
 
 
 
+
+
+
+
+O problema é que nem todas as famílias tiveram gastos com
 
 
 

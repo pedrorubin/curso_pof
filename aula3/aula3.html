@@ -370,24 +370,6 @@ pre code {
 </div>
 
 
-<style type="text/css">
-.spoiler_dica {
-  visibility: hidden;
-}
-
-.spoiler_dica::before {
-  visibility: visible;
-  content: "Passe o mouse aqui para ver uma dica"
-}
-
-.spoiler_dica:hover {
-  visibility: visible;
-}
-
-.spoiler_dica:hover::before {
-  display: none;
-}
-</style>
 <div id="recapitulando" class="section level1">
 <h1>Recapitulando</h1>
 <p>No encontro anterior, fizemos o nosso df de despesas, juntando todos
@@ -396,7 +378,7 @@ agregar essas informações. A tabela <a href="https://sidra.ibge.gov.br/tabela/
 composta pela despesa média mensal das famílias, por tipo de despesa.
 Para replicá-la, precisamos nos certificar de que temos todas as UCs em
 nosso df. O único jeito de fazer isso é checando com o registro
-<em>morador</em></p>
+<em>morador</em>.</p>
 <pre class="r"><code>library(tidyverse)</code></pre>
 <pre class="r"><code>pof_despesa &lt;- read_rds(&quot;./dados/pof_despesa.rds&quot;)
 pof_morador &lt;- read_rds(&quot;./dados/pof_morador.rds&quot;) %&gt;% 
@@ -406,107 +388,338 @@ pof_morador &lt;- read_rds(&quot;./dados/pof_morador.rds&quot;) %&gt;%
          id_dom = str_c(COD_UPA, NUM_DOM),
          id_uc  = str_c(COD_UPA, NUM_DOM, NUM_UC),
          id_pes = str_c(COD_UPA, NUM_DOM, NUM_UC, COD_INFORMANTE))</code></pre>
-<p>Vejamos quantas UCs temos em <code>pof_despesa</code> e em
-<code>pof_morador</code>:</p>
-<pre class="r"><code>bind_rows(pof_despesa %&gt;% summarise(tipo = &quot;pof_despesa&quot;,
-                                    n_uc = n_distinct(id_uc)),
-          pof_despesa %&gt;% summarise(tipo = &quot;pof_morador&quot;,
-                                    n_uc = n_distinct(id_uc)))</code></pre>
-<pre><code>## # A tibble: 2 × 2
-##   tipo         n_uc
-##   &lt;chr&gt;       &lt;int&gt;
-## 1 pof_despesa 58039
-## 2 pof_morador 58039</code></pre>
-<p>É o mesmo número! Podemos checar também com:</p>
-<pre class="r"><code>setdiff(pof_despesa %&gt;% select(id_uc), pof_morador %&gt;% select(id_uc))</code></pre>
-<pre><code>## # A tibble: 0 × 1
-## # … with 1 variable: id_uc &lt;chr&gt;</code></pre>
-<p>Como é um conjunto vazio, temos todas as UCs em
-<code>pof_despesa</code>.</p>
+</div>
+<div id="roteiro-básico-para-obtermos-médias-de-gasto-por-família" class="section level1">
+<h1>Roteiro básico para obtermos médias de gasto por família</h1>
 <p>Basicamente, o que precisamos agora é agregar as informações por UC e
-pelos tipos de despesa que queremos. De início, vamos calcular a despesa
-total média mensal por UC:</p>
-<p>Primeiro, queremos saber qual o gasto total de cada unidade de
-consumo. Vamos então usar o <code>group_by</code> para pegar o total de
-cada família por cada tipo de despesa (no caso, temos apenas um tipo:
-despesa total). Temos que colocar <code>na.rm = TRUE</code> na soma -
-caso contrário, teremos <code>NA</code> para algumas famílias - e
-dividir por 12 para pegar o gasto mensal. Lembrando que a função
-<code>summarise</code> preserva apenas as colunas dos grupos (id_uc e
-nivel_0) e as que criamos. Porém, precisamos do peso amostral de cada
-uc. Por isso, precisamos incluir uma chamada que preserve a variável
-<code>PESO_FINAL</code>. A função <code>unique</code> retorna apenas o
-valor único da variável (quando este existe). Como o peso amostral é o
-mesmo para todos os membro de uma uc, como já estamos agrupando por
-família, temos um valor de <code>PESO_FINAL</code> em cada grupo.</p>
-<pre class="r"><code>pof_despesa_pt1 &lt;- pof_despesa %&gt;% 
-  mutate(PESO_FINAL = as.numeric(PESO_FINAL)) %&gt;% 
-  group_by(id_uc, nivel_0) %&gt;% 
-  summarise(valor_mensal_uc = sum(valor_anualizado, na.rm = T)/12,
-            PESO_FINAL = unique(PESO_FINAL)) %&gt;% 
-  ungroup()</code></pre>
-<p>Agora temos um df com 58039 linhas (uma para cada família) e colunas
-com o valor da despesa mensal e o peso amostral, basta apenas fazer uma
-média ponderada</p>
-<pre class="r"><code>pof_despesa_pt2 &lt;- pof_despesa_pt1 %&gt;% 
-  summarise(valor_medio_mensal = sum(valor_mensal_uc * PESO_FINAL)/ 
-              sum(PESO_FINAL))
-
-pof_despesa_pt2</code></pre>
-<pre><code>## # A tibble: 1 × 1
-##   valor_medio_mensal
-##                &lt;dbl&gt;
-## 1              4649.</code></pre>
-<p>E pronto! Temos aqui nosso resultado.</p>
-<p>Vamos fazer mais um exemplo: o gasto médio por família em Habitação e
-Vestuário. Primeiro, vamos ver qual o código dessas 2 categorias</p>
-<pre class="r"><code>pof_despesa %&gt;% 
-  distinct(nivel_3, .keep_all = T) %&gt;% 
-  select(nivel_3, descricao_3) %&gt;% 
-  arrange(nivel_3)</code></pre>
-<pre><code>## # A tibble: 18 × 2
-##    nivel_3 descricao_3                
-##      &lt;dbl&gt; &lt;chr&gt;                      
-##  1    1101 Alimentacao                
-##  2    1102 Habitacao                  
-##  3    1103 Vestuario                  
-##  4    1104 Transporte                 
-##  5    1105 Higiene e cuidados pessoais
-##  6    1106 Assistencia a saude        
-##  7    1107 Educacao                   
-##  8    1108 Recreação e cultura        
-##  9    1109 Fumo                       
-## 10    1110 Serviços pessoais          
-## 11    1111 Despesas diversas          
-## 12    1201 Impostos                   
-## 13    1202 Contribuições trabalhistas 
-## 14    1203 Serviços bancários         
-## 15    1204 Pensões, mesadas e doações 
-## 16    1205 Previdência privada        
-## 17    1206 Outras                     
-## 18      NA &lt;NA&gt;</code></pre>
-<p>Logo,</p>
-<pre class="r"><code>pof_despesa %&gt;% 
-  mutate(PESO_FINAL = as.numeric(PESO_FINAL)) %&gt;% 
-  group_by(id_uc, nivel_3) %&gt;% 
-  summarise(descricao_3 = unique(descricao_3),
-            valor_mensal_uc = sum(valor_anualizado, na.rm = T)/12,
-            PESO_FINAL = unique(PESO_FINAL)) %&gt;% 
+pelos tipos de despesa que queremos.</p>
+<ol style="list-style-type: decimal">
+<li><p>A partir do df <code>pof_despesa</code>, vamos obter os valores
+dos tipos de despesa que desejamos e agrupar por família. Queremos obter
+um df no qual cada linha é uma família (não necessariamente todas
+estarão presentes)</p></li>
+<li><p>A partir do df <code>pof_morador</code>, vamos criar um novo df
+no qual cada família seja uma linha.</p></li>
+<li><p>Vamos juntar os dois dfs criados nos pontos 1 e 2. O importante é
+que o df do ponto 2 (derivado do <code>pof_morador</code>) é o único que
+garante que temos todas as famílias.</p></li>
+<li><p>Por fim, basta obter a média do gasto ponderada pelos pesos
+amostrais das famílias e dividir por 12 (para obter o gasto médio
+mensal)</p></li>
+</ol>
+<div id="exemplo-1-despesa-total-nivel_0-0" class="section level2">
+<h2>Exemplo 1: Despesa total (nivel_0 == 0)</h2>
+<p>Temos duas alternativas para o primeiro passo (para esse exemplo,
+ambos são iguais - mesmo quando não forem, o resultado final é o
+mesmo)</p>
+<ol style="list-style-type: decimal">
+<li></li>
+</ol>
+<pre class="r"><code>pof_despesa_ex1 &lt;- pof_despesa %&gt;% 
+  group_by(id_uc) %&gt;% 
+  mutate(despesa_total = sum(valor_anualizado[which(nivel_0 == 0)], na.rm = T)) %&gt;% 
   ungroup() %&gt;% 
-  group_by(nivel_3) %&gt;%
-  filter(nivel_3 %in% c(1102,1103)) %&gt;%
-  summarise(valor_medio_mensal = sum(valor_mensal_uc * PESO_FINAL)/
-              sum(PESO_FINAL))</code></pre>
+  distinct(id_uc, .keep_all = T)</code></pre>
+<p>1a.</p>
+<pre class="r"><code>pof_despesa_ex1a &lt;- pof_despesa %&gt;% 
+  filter(nivel_0 == 0) %&gt;% 
+  group_by(id_uc) %&gt;% 
+  mutate(despesa_total = sum(valor_anualizado, na.rm = T)) %&gt;% 
+  ungroup() %&gt;% 
+  distinct(id_uc, .keep_all = T)</code></pre>
+<pre class="r"><code>all_equal(pof_despesa_ex1, pof_despesa_ex1a)</code></pre>
+<pre><code>## [1] TRUE</code></pre>
+<ol start="2" style="list-style-type: decimal">
+<li></li>
+</ol>
+<pre class="r"><code>pof_morador_ex1 &lt;- pof_morador %&gt;% 
+  filter(V0306 == &quot;1&quot;) %&gt;% 
+  mutate(PESO_FINAL = as.numeric(PESO_FINAL),
+         total_uc = sum(PESO_FINAL))</code></pre>
+<ol start="3" style="list-style-type: decimal">
+<li></li>
+</ol>
+<pre class="r"><code>pof_join_ex1 &lt;- pof_morador_ex1 %&gt;% 
+  left_join(pof_despesa_ex1, by = &quot;id_uc&quot;)</code></pre>
+<ol start="4" style="list-style-type: decimal">
+<li></li>
+</ol>
+<pre class="r"><code>pof_join_ex1 %&gt;% 
+  summarise(despesa_total_media = sum(despesa_total*PESO_FINAL.x)/unique(total_uc)/12)</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##   despesa_total_media
+##                 &lt;dbl&gt;
+## 1               4649.</code></pre>
+</div>
+<div id="exemplo-2-despesa-com-consumo-nivel_2-11" class="section level2">
+<h2>Exemplo 2: Despesa com consumo (nivel_2 == 11)</h2>
+<ol style="list-style-type: decimal">
+<li></li>
+</ol>
+<pre class="r"><code>pof_despesa_ex2 &lt;- pof_despesa %&gt;% 
+  group_by(id_uc) %&gt;% 
+  mutate(despesa_consumo = sum(valor_anualizado[which(nivel_2 == 11)], na.rm = T)) %&gt;% 
+  ungroup() %&gt;% 
+  distinct(id_uc, .keep_all = T)</code></pre>
+<p>1a.</p>
+<pre class="r"><code>pof_despesa_ex2a &lt;- pof_despesa %&gt;% 
+  filter(nivel_2 == 11) %&gt;% 
+  group_by(id_uc) %&gt;% 
+  mutate(despesa_consumo = sum(valor_anualizado, na.rm = T)) %&gt;% 
+  ungroup() %&gt;% 
+  distinct(id_uc, .keep_all = T)</code></pre>
+<pre class="r"><code>all_equal(pof_despesa_ex2, pof_despesa_ex2a)</code></pre>
+<pre><code>## [1] &quot;- Rows in x but not in y: 57487\n- Rows in y but not in x: 57487\n&quot;</code></pre>
+<pre class="r"><code>bind_rows(pof_despesa_ex2[57487,],pof_despesa_ex2a[57487,])</code></pre>
+<pre><code>## # A tibble: 2 × 18
+##   id_dom  id_uc codigo_5 valor_anualizado PESO_FINAL nivel_0 descricao_0 nivel_1
+##   &lt;chr&gt;   &lt;chr&gt; &lt;chr&gt;               &lt;dbl&gt; &lt;chr&gt;        &lt;dbl&gt; &lt;chr&gt;         &lt;dbl&gt;
+## 1 330247… 3302… 11020              1574.  1157.5256…       0 Despesa To…       2
+## 2 330247… 3302… 15001                93.1 1157.5256…       0 Despesa To…       1
+## # … with 10 more variables: descricao_1 &lt;chr&gt;, nivel_2 &lt;dbl&gt;,
+## #   descricao_2 &lt;chr&gt;, nivel_3 &lt;dbl&gt;, descricao_3 &lt;chr&gt;, nivel_4 &lt;dbl&gt;,
+## #   descricao_4 &lt;chr&gt;, nivel_5 &lt;dbl&gt;, descricao_5 &lt;chr&gt;, despesa_consumo &lt;dbl&gt;</code></pre>
+<ol start="2" style="list-style-type: decimal">
+<li></li>
+</ol>
+<pre class="r"><code>pof_morador_ex2 &lt;- pof_morador %&gt;% 
+  filter(V0306 == &quot;1&quot;) %&gt;% 
+  mutate(PESO_FINAL = as.numeric(PESO_FINAL),
+         total_uc = sum(PESO_FINAL))</code></pre>
+<ol start="3" style="list-style-type: decimal">
+<li></li>
+</ol>
+<pre class="r"><code>pof_join_ex2 &lt;- pof_morador_ex2 %&gt;% 
+  left_join(pof_despesa_ex2, by = &quot;id_uc&quot;)</code></pre>
+<p>3a.</p>
+<pre class="r"><code>pof_join_ex2a &lt;- pof_morador_ex2 %&gt;% 
+  left_join(pof_despesa_ex2, by = &quot;id_uc&quot;)</code></pre>
+<ol start="4" style="list-style-type: decimal">
+<li></li>
+</ol>
+<pre class="r"><code>pof_join_ex2 %&gt;% 
+  summarise(despesa_consumo_media = sum(despesa_consumo*PESO_FINAL.x)/unique(total_uc)/12)</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##   despesa_consumo_media
+##                   &lt;dbl&gt;
+## 1                 3765.</code></pre>
+<p>4a.</p>
+<pre class="r"><code>pof_join_ex2a %&gt;% 
+  summarise(despesa_consumo_media = sum(despesa_consumo*PESO_FINAL.x)/unique(total_uc)/12)</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##   despesa_consumo_media
+##                   &lt;dbl&gt;
+## 1                 3765.</code></pre>
+</div>
+<div id="exemplo-3-despesas-com-aumento-do-ativo-nivel_1-2-vestuário-nivel_3-1103" class="section level2">
+<h2>Exemplo 3: Despesas com Aumento do ativo (nivel_1 == 2) Vestuário
+(nivel_3 == 1103)</h2>
+<p>Note que agora estamos usando dados de dois nível diferentes. Na
+primeira alternativa, não há diferença: basta criar uma coluna
+adicional</p>
+<ol style="list-style-type: decimal">
+<li></li>
+</ol>
+<pre class="r"><code>pof_despesa_ex3 &lt;- pof_despesa %&gt;% 
+  group_by(id_uc) %&gt;% 
+  mutate(despesa_ativo = sum(valor_anualizado[which(nivel_1 == 2)], na.rm = T),
+         despesa_vestuario = sum(valor_anualizado[which(nivel_3 == 1103)], na.rm = T)) %&gt;% 
+  ungroup() %&gt;% 
+  distinct(id_uc, .keep_all = T)</code></pre>
+<p>Aqui, no entanto, temos uma questão. Se fossem duas despesas do mesmo
+nível, poderíamos fazer tudo em apenas uma chamada de
+<code>filter</code> (p.ex.
+<code>filter(nivel_3 %in% c(1103, 1104))</code>). Se fosse um
+subconjunto (por exemplo, despesas de consumo e despesas de habitação),
+poderíamos fazer dois <code>filter</code>. Mas nesse caso, a única
+solução é criar 2 dataframes distintos</p>
+<p>1.a</p>
+<pre class="r"><code>pof_despesa_ex3a_ativo &lt;- pof_despesa %&gt;% 
+  filter(nivel_1 == 2) %&gt;% 
+  group_by(id_uc) %&gt;% 
+  mutate(despesa_ativo = sum(valor_anualizado, na.rm = T)) %&gt;% 
+  ungroup() %&gt;% 
+  distinct(id_uc, .keep_all = T)
+
+pof_despesa_ex3a_vest &lt;- pof_despesa %&gt;% 
+  filter(nivel_3 == 1103) %&gt;% 
+  group_by(id_uc) %&gt;% 
+  mutate(despesa_vestuario = sum(valor_anualizado, na.rm = T)) %&gt;% 
+  ungroup() %&gt;% 
+  distinct(id_uc, .keep_all = T)</code></pre>
+<ol start="2" style="list-style-type: decimal">
+<li></li>
+</ol>
+<pre class="r"><code>pof_morador_ex3 &lt;- pof_morador %&gt;% 
+  filter(V0306 == &quot;1&quot;) %&gt;% 
+  mutate(PESO_FINAL = as.numeric(PESO_FINAL),
+         total_uc = sum(PESO_FINAL))</code></pre>
+<ol start="3" style="list-style-type: decimal">
+<li></li>
+</ol>
+<pre class="r"><code>pof_join_ex3 &lt;- pof_morador_ex3 %&gt;% 
+  left_join(pof_despesa_ex3, by = &quot;id_uc&quot;)</code></pre>
+<p>3a. Aqui, vamos precisar fazer 2 <code>left_join</code></p>
+<pre class="r"><code>pof_join_ex3a &lt;- pof_morador_ex3 %&gt;% 
+  left_join(pof_despesa_ex3a_ativo, by = &quot;id_uc&quot;) %&gt;% 
+  left_join(pof_despesa_ex3a_vest, by = &quot;id_uc&quot;)</code></pre>
+<ol start="4" style="list-style-type: decimal">
+<li></li>
+</ol>
+<pre class="r"><code>pof_join_ex3 %&gt;% 
+  summarise(despesa_ativo_media = sum(despesa_ativo*PESO_FINAL.x)/unique(total_uc)/12,
+            despesa_vestuario_media = sum(despesa_vestuario*PESO_FINAL.x)/unique(total_uc)/12)</code></pre>
+<pre><code>## # A tibble: 1 × 2
+##   despesa_ativo_media despesa_vestuario_media
+##                 &lt;dbl&gt;                   &lt;dbl&gt;
+## 1                189.                    160.</code></pre>
+<p>4a.</p>
+<pre class="r"><code>pof_join_ex3a %&gt;% 
+  summarise(despesa_ativo_media = sum(despesa_ativo*PESO_FINAL.x, na.rm = T)/unique(total_uc)/12,
+            despesa_vestuario_media = sum(despesa_vestuario*PESO_FINAL.x, na.rm = T)/
+              unique(total_uc)/12)</code></pre>
+<pre><code>## # A tibble: 1 × 2
+##   despesa_ativo_media despesa_vestuario_media
+##                 &lt;dbl&gt;                   &lt;dbl&gt;
+## 1                189.                    160.</code></pre>
+</div>
+</div>
+<div id="médias-em-subdivisões-da-população" class="section level1">
+<h1>Médias em subdivisões da população</h1>
+<p>Até aqui, fizemos cálculos das médias de todas as famílias. No
+entanto, podemos estar interessados em um (ou mais) subconjuntos da
+população, como: UF, gênero da pessoa de referência, presença de
+crianças e/ou idosos, água canalizada e por aí vai. Todos os exemplos
+acima envolvem alterações no <code>pof_morador</code>, exceto o último
+(água canalizada), que precisa também do <code>pof_domicilio</code>.
+Vamos fazer então os 4 casos citados acima, tomando sempre os gastos de
+habitação como base.</p>
+<div id="exemplo-1a---média-de-gasto-por-uf" class="section level2">
+<h2>Exemplo 1A - Média de gasto por UF</h2>
+<p>Vamos tomar como exemplo Sergipe</p>
+<ol style="list-style-type: decimal">
+<li></li>
+</ol>
+<pre class="r"><code>pof_despesa_habit &lt;- pof_despesa %&gt;% 
+  group_by(id_uc) %&gt;% 
+  mutate(despesa_habit = sum(valor_anualizado[which(nivel_3 == 1102)], na.rm = T)) %&gt;% 
+  ungroup() %&gt;% 
+  distinct(id_uc, .keep_all = T)</code></pre>
+<ol start="2" style="list-style-type: decimal">
+<li></li>
+</ol>
+<pre class="r"><code>pof_morador_sergipe &lt;- pof_morador %&gt;% 
+  filter(V0306 == &quot;1&quot;,
+         UF == &quot;28&quot;) %&gt;% 
+  mutate(PESO_FINAL = as.numeric(PESO_FINAL),
+         total_uc = sum(PESO_FINAL))</code></pre>
+<p>Vamos juntar o 3 e o 4</p>
+<pre class="r"><code>pof_morador_sergipe %&gt;% 
+  left_join(pof_despesa_habit, by = &quot;id_uc&quot;) %&gt;% 
+  summarise(despesa_habit_media_sergipe = sum(despesa_habit*PESO_FINAL.x)/unique(total_uc)/12)</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##   despesa_habit_media_sergipe
+##                         &lt;dbl&gt;
+## 1                        929.</code></pre>
+</div>
+<div id="exemplo-2a---média-de-gasto-por-gênero-da-pessoa-de-referência" class="section level2">
+<h2>Exemplo 2A - Média de gasto por gênero da pessoa de referência</h2>
+<p>Aqui, ao invés de escolher uma ou outra, vamos calcular para
+ambas</p>
+<ol style="list-style-type: decimal">
+<li>Já fizemos mas vou deixar aqui de referência</li>
+</ol>
+<pre class="r"><code># pof_despesa_habit &lt;- pof_despesa %&gt;% 
+#   group_by(id_uc) %&gt;% 
+#   mutate(despesa_habit = sum(valor_anualizado[which(nivel_3 == 1102)], na.rm = T)) %&gt;% 
+#   ungroup() %&gt;% 
+#   distinct(id_uc, .keep_all = T)</code></pre>
+<ol start="2" style="list-style-type: decimal">
+<li></li>
+</ol>
+<pre class="r"><code>pof_morador_genero &lt;- pof_morador %&gt;% 
+  filter(V0306 == &quot;1&quot;) %&gt;% 
+  mutate(PESO_FINAL = as.numeric(PESO_FINAL),
+         total_uc = sum(PESO_FINAL))</code></pre>
+<p>Vamos juntar o 3 e o 4</p>
+<p>Note que aqui não podemos mais usar o “total_uc” que calculamos no
+ponto 2.</p>
+<pre class="r"><code>pof_morador_genero %&gt;% 
+  left_join(pof_despesa_habit, by = &quot;id_uc&quot;) %&gt;% 
+  group_by(V0404) %&gt;% 
+  summarise(despesa_habit_media = sum(despesa_habit*PESO_FINAL.x)/sum(PESO_FINAL.x)/12)</code></pre>
 <pre><code>## # A tibble: 2 × 2
-##   nivel_3 valor_medio_mensal
-##     &lt;dbl&gt;              &lt;dbl&gt;
-## 1    1102              1377.
-## 2    1103               193.</code></pre>
-<p>Deu errado! Alguém tem alguma ideia do que aconteceu? Tente
-identificar onde está o erro no código acima.</p>
-<p><span class="spoiler_dica">O erro está em
-<code>group_by(nivel_3) %&gt;% filter(nivel_3 %in% c(1102,1103))</code>.</span></p>
-<p>O problema é que nem todas as famílias tiveram gastos com</p>
+##   V0404 despesa_habit_media
+##   &lt;chr&gt;               &lt;dbl&gt;
+## 1 1                   1427.
+## 2 2                   1307.</code></pre>
+</div>
+<div id="exemplo-3a---média-de-gasto-por-composição-familiar" class="section level2">
+<h2>Exemplo 3A - Média de gasto por composição familiar</h2>
+<p>Vamos fazer o cálculo para presença de crianças (idade &lt;= 14)</p>
+<ol style="list-style-type: decimal">
+<li>Já fizemos mas vou deixar aqui de referência</li>
+</ol>
+<pre class="r"><code># pof_despesa_habit &lt;- pof_despesa %&gt;% 
+#   group_by(id_uc) %&gt;% 
+#   mutate(despesa_habit = sum(valor_anualizado[which(nivel_3 == 1102)], na.rm = T)) %&gt;% 
+#   ungroup() %&gt;% 
+#   distinct(id_uc, .keep_all = T)</code></pre>
+<ol start="2" style="list-style-type: decimal">
+<li></li>
+</ol>
+<pre class="r"><code>pof_morador_crianca &lt;- pof_morador %&gt;% 
+  filter(V0306 != &quot;18&quot; &amp; V0306 != &quot;19&quot;) %&gt;% 
+  group_by(id_uc) %&gt;% 
+  mutate(crianca = case_when(any(as.numeric(V0403) &lt;= 14) ~ 1,
+                             TRUE ~ 0)) %&gt;% 
+  filter(V0306 == &quot;1&quot;, crianca == 1) %&gt;% 
+  ungroup() %&gt;% 
+  mutate(PESO_FINAL = as.numeric(PESO_FINAL),
+         total_uc = sum(PESO_FINAL))</code></pre>
+<p>Vamos juntar o 3 e o 4</p>
+<pre class="r"><code>pof_morador_crianca %&gt;% 
+  left_join(pof_despesa_habit, by = &quot;id_uc&quot;) %&gt;% 
+  summarise(despesa_habit_media = sum(despesa_habit*PESO_FINAL.x)/unique(total_uc)/12)</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##   despesa_habit_media
+##                 &lt;dbl&gt;
+## 1               1270.</code></pre>
+</div>
+<div id="exemplo-4a---média-de-gasto-por-condição-do-domicílio" class="section level2">
+<h2>Exemplo 4A - Média de gasto por condição do domicílio</h2>
+<p>Vamos ver o gasto das famílias com água canalizada em pelo menos um
+cômodo</p>
+<ol style="list-style-type: decimal">
+<li>Já fizemos mas vou deixar aqui de referência</li>
+</ol>
+<pre class="r"><code># pof_despesa_habit &lt;- pof_despesa %&gt;% 
+#   group_by(id_uc) %&gt;% 
+#   mutate(despesa_habit = sum(valor_anualizado[which(nivel_3 == 1102)], na.rm = T)) %&gt;% 
+#   ungroup() %&gt;% 
+#   distinct(id_uc, .keep_all = T)</code></pre>
+<ol start="2" style="list-style-type: decimal">
+<li></li>
+</ol>
+<pre class="r"><code>pof_morador_agua &lt;- pof_morador %&gt;% 
+  filter(V0306 == &quot;1&quot;) %&gt;% 
+  mutate(PESO_FINAL = as.numeric(PESO_FINAL),
+         total_uc = sum(PESO_FINAL))</code></pre>
+<p>2.5</p>
+<pre class="r"><code>pof_domicilio_agua &lt;- read_rds(&quot;./dados/pof_domicilio.rds&quot;) %&gt;% 
+  mutate(NUM_DOM = str_pad(NUM_DOM, 2, &quot;left&quot;, &quot;0&quot;),
+         id_dom = str_c(COD_UPA, NUM_DOM))</code></pre>
+<p>Vamos juntar o 3 e o 4</p>
+<pre class="r"><code>pof_morador_agua %&gt;% 
+  left_join(pof_despesa_habit, by = &quot;id_uc&quot;) %&gt;% 
+  left_join(pof_domicilio_agua, by = c(&quot;id_dom.x&quot; = &quot;id_dom&quot;)) %&gt;% 
+  filter(V0209 == &quot;1&quot;) %&gt;% 
+  summarise(despesa_habit_media = sum(despesa_habit*PESO_FINAL.x)/sum(PESO_FINAL.x)/12)</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##   despesa_habit_media
+##                 &lt;dbl&gt;
+## 1               1413.</code></pre>
+</div>
 </div>
 
 

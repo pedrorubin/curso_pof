@@ -33,28 +33,10 @@ knit_hooks$set(output = function(x, options) {
 })
 ``` 
 
-```{css, echo=FALSE}
-.spoiler_dica {
-  visibility: hidden;
-}
-
-.spoiler_dica::before {
-  visibility: visible;
-  content: "Passe o mouse aqui para ver uma dica"
-}
-
-.spoiler_dica:hover {
-  visibility: visible;
-}
-
-.spoiler_dica:hover::before {
-  display: none;
-}
-```
 
 # Recapitulando
 No encontro anterior, fizemos o nosso df de despesas, juntando todos os gastos de todos os tipos para todas as uc. O próximo passo agora é agregar essas informações.
-A tabela [tabela 6715 do SIDRA](https://sidra.ibge.gov.br/tabela/6715) é composta pela despesa média mensal das famílias, por tipo de despesa. Para replicá-la, precisamos nos certificar de que temos todas as UCs em nosso df. O único jeito de fazer isso é checando com o registro *morador*
+A tabela [tabela 6715 do SIDRA](https://sidra.ibge.gov.br/tabela/6715) é composta pela despesa média mensal das famílias, por tipo de despesa. Para replicá-la, precisamos nos certificar de que temos todas as UCs em nosso df. O único jeito de fazer isso é checando com o registro *morador*.
 
 ```{r, message = FALSE, warning=FALSE}
 library(tidyverse)
@@ -70,90 +52,332 @@ pof_morador <- read_rds("./dados/pof_morador.rds") %>%
          id_pes = str_c(COD_UPA, NUM_DOM, NUM_UC, COD_INFORMANTE))
 ```
 
-Vejamos quantas UCs temos em `pof_despesa` e em `pof_morador`:
 
+# Roteiro básico para obtermos médias de gasto por família
+
+Basicamente, o que precisamos agora é agregar as informações por UC e pelos tipos de despesa que queremos.
+
+1. A partir do df `pof_despesa`, vamos obter os valores dos tipos de despesa que desejamos e agrupar por família. Queremos obter um df no qual cada linha é uma família (não necessariamente todas estarão presentes) 
+
+2. A partir do df `pof_morador`, vamos criar um novo df no qual cada família seja uma linha.
+
+3. Vamos juntar os dois dfs criados nos pontos 1 e 2. O importante é que o df do ponto 2 (derivado do `pof_morador`) é o único que garante que temos todas as famílias.
+
+4. Por fim, basta obter a média do gasto ponderada pelos pesos amostrais das famílias e dividir por 12 (para obter o gasto médio mensal)
+
+## Exemplo 1: Despesa total (nivel_0 == 0)
+
+Temos duas alternativas para o primeiro passo (para esse exemplo, ambos são iguais - mesmo quando não forem, o resultado final é o mesmo)
+
+1.
 ```{r}
-bind_rows(pof_despesa %>% summarise(tipo = "pof_despesa",
-                                    n_uc = n_distinct(id_uc)),
-          pof_despesa %>% summarise(tipo = "pof_morador",
-                                    n_uc = n_distinct(id_uc)))
-```
-
-É o mesmo número! Podemos checar também com:
-```{r}
-setdiff(pof_despesa %>% select(id_uc), pof_morador %>% select(id_uc))
-```
-
-Como é um conjunto vazio, temos todas as UCs em `pof_despesa`.
-
-Basicamente, o que precisamos agora é agregar as informações por UC e pelos tipos de despesa que queremos. De início, vamos calcular a despesa total média mensal por UC:
-
-Primeiro, queremos saber qual o gasto total de cada unidade de consumo. Vamos então usar o `group_by` para pegar o total de cada família por cada tipo de despesa (no caso, temos apenas um tipo: despesa total). Temos que colocar `na.rm = TRUE` na soma - caso contrário, teremos `NA` para algumas famílias - e dividir por 12 para pegar o gasto mensal. Lembrando que a função `summarise` preserva apenas as colunas dos grupos (id_uc e nivel_0) e as que criamos. Porém, precisamos do peso amostral de cada uc. Por isso, precisamos incluir uma chamada que preserve a variável `PESO_FINAL`. A função `unique` retorna apenas o valor único da variável (quando este existe). Como o peso amostral é o mesmo para todos os membro de uma uc, como já estamos agrupando por família, temos um valor de `PESO_FINAL` em cada grupo.
-
-
-```{r, message=FALSE, warning = FALSE}
-
-pof_despesa_pt1 <- pof_despesa %>% 
-  mutate(PESO_FINAL = as.numeric(PESO_FINAL)) %>% 
-  group_by(id_uc, nivel_0) %>% 
-  summarise(valor_mensal_uc = sum(valor_anualizado, na.rm = T)/12,
-            PESO_FINAL = unique(PESO_FINAL)) %>% 
-  ungroup()
-
-```
-
-Agora temos um df com 58039 linhas (uma para cada família) e colunas com o valor da despesa mensal e o peso amostral, basta apenas fazer uma média ponderada
-
-```{r}
-
-pof_despesa_pt2 <- pof_despesa_pt1 %>% 
-  summarise(valor_medio_mensal = sum(valor_mensal_uc * PESO_FINAL)/ 
-              sum(PESO_FINAL))
-
-pof_despesa_pt2
-```
-
-E pronto! Temos aqui nosso resultado.
-
-Vamos fazer mais um exemplo: o gasto médio por família em Habitação e Vestuário. Primeiro, vamos ver qual o código dessas 2 categorias
-
-```{r}
-pof_despesa %>% 
-  distinct(nivel_3, .keep_all = T) %>% 
-  select(nivel_3, descricao_3) %>% 
-  arrange(nivel_3)
-
-```
-Logo, 
-
-```{r, message = F, warning=F}
-pof_despesa %>% 
-  mutate(PESO_FINAL = as.numeric(PESO_FINAL)) %>% 
-  group_by(id_uc, nivel_3) %>% 
-  summarise(descricao_3 = unique(descricao_3),
-            valor_mensal_uc = sum(valor_anualizado, na.rm = T)/12,
-            PESO_FINAL = unique(PESO_FINAL)) %>% 
+pof_despesa_ex1 <- pof_despesa %>% 
+  group_by(id_uc) %>% 
+  mutate(despesa_total = sum(valor_anualizado[which(nivel_0 == 0)], na.rm = T)) %>% 
   ungroup() %>% 
-  group_by(nivel_3) %>%
-  filter(nivel_3 %in% c(1102,1103)) %>%
-  summarise(valor_medio_mensal = sum(valor_mensal_uc * PESO_FINAL)/
-              sum(PESO_FINAL))
-
+  distinct(id_uc, .keep_all = T)
 ```
 
-Deu errado! Alguém tem alguma ideia do que aconteceu?
-Tente identificar onde está o erro no código acima.
+1a.
+```{r}
+pof_despesa_ex1a <- pof_despesa %>% 
+  filter(nivel_0 == 0) %>% 
+  group_by(id_uc) %>% 
+  mutate(despesa_total = sum(valor_anualizado, na.rm = T)) %>% 
+  ungroup() %>% 
+  distinct(id_uc, .keep_all = T)
+```
 
-[O erro está em `group_by(nivel_3) %>% filter(nivel_3 %in% c(1102,1103))`. Cheque o que acontece com o número de UCs]{.spoiler_dica}
+```{r}
+all_equal(pof_despesa_ex1, pof_despesa_ex1a)
+```
 
 
+2.
+```{r}
+pof_morador_ex1 <- pof_morador %>% 
+  filter(V0306 == "1") %>% 
+  mutate(PESO_FINAL = as.numeric(PESO_FINAL),
+         total_uc = sum(PESO_FINAL))
+```
+
+3. 
+```{r}
+pof_join_ex1 <- pof_morador_ex1 %>% 
+  left_join(pof_despesa_ex1, by = "id_uc")
+```
+
+4.
+```{r}
+pof_join_ex1 %>% 
+  summarise(despesa_total_media = sum(despesa_total*PESO_FINAL.x)/unique(total_uc)/12)
+```
+
+## Exemplo 2: Despesa com consumo (nivel_2 == 11)
+
+1.
+```{r}
+pof_despesa_ex2 <- pof_despesa %>% 
+  group_by(id_uc) %>% 
+  mutate(despesa_consumo = sum(valor_anualizado[which(nivel_2 == 11)], na.rm = T)) %>% 
+  ungroup() %>% 
+  distinct(id_uc, .keep_all = T)
+```
+
+1a.
+```{r}
+pof_despesa_ex2a <- pof_despesa %>% 
+  filter(nivel_2 == 11) %>% 
+  group_by(id_uc) %>% 
+  mutate(despesa_consumo = sum(valor_anualizado, na.rm = T)) %>% 
+  ungroup() %>% 
+  distinct(id_uc, .keep_all = T)
+```
+
+```{r}
+all_equal(pof_despesa_ex2, pof_despesa_ex2a)
+bind_rows(pof_despesa_ex2[57487,],pof_despesa_ex2a[57487,])
+```
 
 
+2.
+```{r}
+pof_morador_ex2 <- pof_morador %>% 
+  filter(V0306 == "1") %>% 
+  mutate(PESO_FINAL = as.numeric(PESO_FINAL),
+         total_uc = sum(PESO_FINAL))
+```
+
+3. 
+```{r}
+pof_join_ex2 <- pof_morador_ex2 %>% 
+  left_join(pof_despesa_ex2, by = "id_uc")
+```
+
+3a. 
+```{r}
+pof_join_ex2a <- pof_morador_ex2 %>% 
+  left_join(pof_despesa_ex2, by = "id_uc")
+```
 
 
+4.
+```{r}
+pof_join_ex2 %>% 
+  summarise(despesa_consumo_media = sum(despesa_consumo*PESO_FINAL.x)/unique(total_uc)/12)
+```
 
-O problema é que nem todas as famílias tiveram gastos com
+4a.
+```{r}
+pof_join_ex2a %>% 
+  summarise(despesa_consumo_media = sum(despesa_consumo*PESO_FINAL.x)/unique(total_uc)/12)
+```
 
+## Exemplo 3: Despesas com Aumento do ativo (nivel_1 == 2) Vestuário (nivel_3 == 1103)
+
+Note que agora estamos usando dados de dois nível diferentes. Na primeira alternativa, não há diferença: basta criar uma coluna adicional
+
+1.
+```{r}
+pof_despesa_ex3 <- pof_despesa %>% 
+  group_by(id_uc) %>% 
+  mutate(despesa_ativo = sum(valor_anualizado[which(nivel_1 == 2)], na.rm = T),
+         despesa_vestuario = sum(valor_anualizado[which(nivel_3 == 1103)], na.rm = T)) %>% 
+  ungroup() %>% 
+  distinct(id_uc, .keep_all = T)
+```
+
+Aqui, no entanto, temos uma questão. Se fossem duas despesas do mesmo nível, poderíamos fazer tudo em apenas uma chamada de `filter` (p.ex. `filter(nivel_3 %in% c(1103, 1104))`). Se fosse um subconjunto (por exemplo, despesas de consumo e despesas de habitação), poderíamos fazer dois `filter`. Mas nesse caso, a única solução é criar 2 dataframes distintos 
+
+1.a
+```{r}
+pof_despesa_ex3a_ativo <- pof_despesa %>% 
+  filter(nivel_1 == 2) %>% 
+  group_by(id_uc) %>% 
+  mutate(despesa_ativo = sum(valor_anualizado, na.rm = T)) %>% 
+  ungroup() %>% 
+  distinct(id_uc, .keep_all = T)
+
+pof_despesa_ex3a_vest <- pof_despesa %>% 
+  filter(nivel_3 == 1103) %>% 
+  group_by(id_uc) %>% 
+  mutate(despesa_vestuario = sum(valor_anualizado, na.rm = T)) %>% 
+  ungroup() %>% 
+  distinct(id_uc, .keep_all = T)
+```
+
+
+2.
+```{r}
+pof_morador_ex3 <- pof_morador %>% 
+  filter(V0306 == "1") %>% 
+  mutate(PESO_FINAL = as.numeric(PESO_FINAL),
+         total_uc = sum(PESO_FINAL))
+```
+
+3. 
+```{r}
+pof_join_ex3 <- pof_morador_ex3 %>% 
+  left_join(pof_despesa_ex3, by = "id_uc")
+```
+
+3a. 
+Aqui, vamos precisar fazer 2 `left_join`
+```{r}
+pof_join_ex3a <- pof_morador_ex3 %>% 
+  left_join(pof_despesa_ex3a_ativo, by = "id_uc") %>% 
+  left_join(pof_despesa_ex3a_vest, by = "id_uc")
+```
+
+
+4.
+```{r}
+pof_join_ex3 %>% 
+  summarise(despesa_ativo_media = sum(despesa_ativo*PESO_FINAL.x)/unique(total_uc)/12,
+            despesa_vestuario_media = sum(despesa_vestuario*PESO_FINAL.x)/unique(total_uc)/12)
+```
+
+4a.
+```{r}
+pof_join_ex3a %>% 
+  summarise(despesa_ativo_media = sum(despesa_ativo*PESO_FINAL.x, na.rm = T)/unique(total_uc)/12,
+            despesa_vestuario_media = sum(despesa_vestuario*PESO_FINAL.x, na.rm = T)/
+              unique(total_uc)/12)
+```
+
+# Médias em subdivisões da população
+
+Até aqui, fizemos cálculos das médias de todas as famílias. No entanto, podemos estar interessados em um (ou mais) subconjuntos da população, como: UF, gênero da pessoa de referência, presença de crianças e/ou idosos, água canalizada e por aí vai.
+Todos os exemplos acima envolvem alterações no `pof_morador`, exceto o último (água canalizada), que precisa também do `pof_domicilio`.
+Vamos fazer então os 4 casos citados acima, tomando sempre os gastos de habitação como base.
+
+## Exemplo 1A - Média de gasto por UF
+Vamos tomar como exemplo Sergipe
+
+1.
+```{r}
+pof_despesa_habit <- pof_despesa %>% 
+  group_by(id_uc) %>% 
+  mutate(despesa_habit = sum(valor_anualizado[which(nivel_3 == 1102)], na.rm = T)) %>% 
+  ungroup() %>% 
+  distinct(id_uc, .keep_all = T)
+```
+
+2.
+```{r}
+pof_morador_sergipe <- pof_morador %>% 
+  filter(V0306 == "1",
+         UF == "28") %>% 
+  mutate(PESO_FINAL = as.numeric(PESO_FINAL),
+         total_uc = sum(PESO_FINAL))
+```
+
+Vamos juntar o 3 e o 4
+```{r}
+pof_morador_sergipe %>% 
+  left_join(pof_despesa_habit, by = "id_uc") %>% 
+  summarise(despesa_habit_media_sergipe = sum(despesa_habit*PESO_FINAL.x)/unique(total_uc)/12)
+```
+
+## Exemplo 2A - Média de gasto por gênero da pessoa de referência
+
+Aqui, ao invés de escolher uma ou outra, vamos calcular para ambas
+
+1. Já fizemos mas vou deixar aqui de referência
+```{r}
+# pof_despesa_habit <- pof_despesa %>% 
+#   group_by(id_uc) %>% 
+#   mutate(despesa_habit = sum(valor_anualizado[which(nivel_3 == 1102)], na.rm = T)) %>% 
+#   ungroup() %>% 
+#   distinct(id_uc, .keep_all = T)
+```
+
+2.
+```{r}
+pof_morador_genero <- pof_morador %>% 
+  filter(V0306 == "1") %>% 
+  mutate(PESO_FINAL = as.numeric(PESO_FINAL),
+         total_uc = sum(PESO_FINAL))
+```
+
+Vamos juntar o 3 e o 4
+
+Note que aqui não podemos mais usar o "total_uc" que calculamos no ponto 2.
+```{r}
+pof_morador_genero %>% 
+  left_join(pof_despesa_habit, by = "id_uc") %>% 
+  group_by(V0404) %>% 
+  summarise(despesa_habit_media = sum(despesa_habit*PESO_FINAL.x)/sum(PESO_FINAL.x)/12)
+```
+
+## Exemplo 3A - Média de gasto por composição familiar
+
+Vamos fazer o cálculo para presença de crianças (idade <= 14)
+
+1. Já fizemos mas vou deixar aqui de referência
+```{r}
+# pof_despesa_habit <- pof_despesa %>% 
+#   group_by(id_uc) %>% 
+#   mutate(despesa_habit = sum(valor_anualizado[which(nivel_3 == 1102)], na.rm = T)) %>% 
+#   ungroup() %>% 
+#   distinct(id_uc, .keep_all = T)
+```
+
+2.
+```{r}
+pof_morador_crianca <- pof_morador %>% 
+  filter(V0306 != "18" & V0306 != "19") %>% 
+  group_by(id_uc) %>% 
+  mutate(crianca = case_when(any(as.numeric(V0403) <= 14) ~ 1,
+                             TRUE ~ 0)) %>% 
+  filter(V0306 == "1", crianca == 1) %>% 
+  ungroup() %>% 
+  mutate(PESO_FINAL = as.numeric(PESO_FINAL),
+         total_uc = sum(PESO_FINAL))
+```
+
+Vamos juntar o 3 e o 4
+```{r}
+pof_morador_crianca %>% 
+  left_join(pof_despesa_habit, by = "id_uc") %>% 
+  summarise(despesa_habit_media = sum(despesa_habit*PESO_FINAL.x)/unique(total_uc)/12)
+```
+
+## Exemplo 4A - Média de gasto por condição do domicílio
+Vamos ver o gasto das famílias com água canalizada em pelo menos um cômodo
+
+1. Já fizemos mas vou deixar aqui de referência
+```{r}
+# pof_despesa_habit <- pof_despesa %>% 
+#   group_by(id_uc) %>% 
+#   mutate(despesa_habit = sum(valor_anualizado[which(nivel_3 == 1102)], na.rm = T)) %>% 
+#   ungroup() %>% 
+#   distinct(id_uc, .keep_all = T)
+```
+
+2.
+```{r}
+pof_morador_agua <- pof_morador %>% 
+  filter(V0306 == "1") %>% 
+  mutate(PESO_FINAL = as.numeric(PESO_FINAL),
+         total_uc = sum(PESO_FINAL))
+```
+
+2.5
+```{r}
+pof_domicilio_agua <- read_rds("./dados/pof_domicilio.rds") %>% 
+  mutate(NUM_DOM = str_pad(NUM_DOM, 2, "left", "0"),
+         id_dom = str_c(COD_UPA, NUM_DOM))
+```
+
+Vamos juntar o 3 e o 4
+```{r}
+pof_morador_agua %>% 
+  left_join(pof_despesa_habit, by = "id_uc") %>% 
+  left_join(pof_domicilio_agua, by = c("id_dom.x" = "id_dom")) %>% 
+  filter(V0209 == "1") %>% 
+  summarise(despesa_habit_media = sum(despesa_habit*PESO_FINAL.x)/sum(PESO_FINAL.x)/12)
+```
 
 
 

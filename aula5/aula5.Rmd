@@ -1,0 +1,88 @@
+---
+title: 'Curso POF: Aula 5'
+author: "Pedro Rubin"
+date: '2022-05-23'
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE}
+library(knitr)
+hook_output <- knit_hooks$get("output")
+knit_hooks$set(output = function(x, options) {
+  lines <- options$output.lines
+  if (is.null(lines)) {
+    return(hook_output(x, options))  # pass to default hook
+  }
+  x <- unlist(strsplit(x, "\n"))
+  more <- "..."
+  if (length(lines)==1) {        # first n lines
+    if (length(x) > lines) {
+      # truncate the output, but add ....
+      x <- c(head(x, lines), more)
+    }
+  } else {
+    x <- c(more, x[lines], more)
+  }
+  # paste these lines together
+  x <- paste(c(x, ""), collapse = "\n")
+  hook_output(x, options)
+})
+``` 
+
+
+# Antes de começar
+Precisamos checar se os pacotes `survey` e `srvyr` estão instalados
+```{r, message = FALSE, warning=FALSE}
+
+# find.package('survey', quiet=TRUE)
+# find.package('srvyr', quiet=TRUE)
+# 
+# install.packages(c("survey", "srvyr"))
+
+library(tidyverse)
+library(survey)
+library(srvyr)
+```
+
+
+# Desenho amostral
+Até o momento, nos preocupamos apenas com o valor pontual dos nossos cálculos (população, despesas etc). No entando, sendo a POF uma pesquisa amostral, esses valores são estimativas, associados a erros-padrão, intervalos de confiança e outras medidas afins. Para obtermos essas informações, precisamos levar em conta o desenho amostral, o que é feito através dos pacotes `survey` e `srvyr`. 
+
+Vamos carregar nossas bases:
+```{r}
+pof_despesa <- read_rds("./dados/pof_despesa.rds")
+pof_morador <- read_rds("./dados/pof_morador.rds") %>% 
+  mutate(NUM_DOM = str_pad(NUM_DOM, 2, "left", "0"),
+         NUM_UC = str_pad(NUM_UC, 2, "left", "0"),
+         COD_INFORMANTE = str_pad(COD_INFORMANTE, 2, "left", "0"),
+         id_dom = str_c(COD_UPA, NUM_DOM),
+         id_uc  = str_c(COD_UPA, NUM_DOM, NUM_UC),
+         id_pes = str_c(COD_UPA, NUM_DOM, NUM_UC, COD_INFORMANTE)) %>% 
+  mutate(across(.fns = as.numeric)) %>% filter(V0306 == "1")
+```
+
+```{r}
+pof <- as_survey_design(.data = pof_morador,
+                        strata = COD_UPA,
+                        weights = PESO_FINAL)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

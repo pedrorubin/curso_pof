@@ -37,45 +37,45 @@ knit_hooks$set(output = function(x, options) {
 
 ```{css, echo=FALSE}
 .spoiler_dica {
-  visibility: hidden;
+visibility: hidden;
 }
 
 .spoiler_dica::before {
-  visibility: visible;
-  content: "Passe o mouse aqui para ver uma dica"
+visibility: visible;
+content: "Passe o mouse aqui para ver uma dica"
 }
 
 .spoiler_dica:hover {
-  visibility: visible;
+visibility: visible;
 }
 
 .spoiler_dica:hover::before {
-  display: none;
+display: none;
 }
 ```
 
 ```{css, echo=FALSE}
 .spoiler_resposta {
-  visibility: hidden;
+visibility: hidden;
 }
 
 .spoiler_resposta::before {
-  visibility: visible;
-  content: "Tente fazer por conta própria antes de ver uma possível resposta!"
+visibility: visible;
+content: "Tente fazer por conta própria antes de ver uma possível resposta!"
 }
 
 .spoiler_resposta:hover {
-  visibility: visible;
+visibility: visible;
 }
 
 .spoiler_resposta:hover::before {
-  display: none;
+display: none;
 }
 ```
 
 # Introdução
 Essa revisão de R tem o objetivo de apresentar o básico necessário para o curso em R.
-Em linhas gerais, é preciso saber carregar pacotes, importar arquivos csv, os verbos do dplyr (arrange, select, mutate, filter, group_by, summarise), como juntar dois dataframes (join) e outras funções úteis que vão surgindo pelo caminho.
+Em linhas gerais, é preciso saber carregar pacotes, importar arquivos csv, os verbos do `dplyr` (`arrange`, `select`, `mutate`, `filter`, `group_by`, `summarise`), como juntar dois dataframes (`join`) e outras funções úteis que vão surgindo pelo caminho.
 
 ## Carregar pacotes e importar arquivos csv
 
@@ -83,17 +83,16 @@ Em linhas gerais, é preciso saber carregar pacotes, importar arquivos csv, os v
 library(tidyverse)
 pnadc <- read_csv("./aula1/intro_r/pnadc_final.csv")
 ```
-Para dar um panorama dos nossos dados, vamos usar a função glimpse.
+Para dar um panorama dos nossos dados, vamos usar a função `glimpse`, que nos mostra todas a dimensão e todas as colunas do nosso df.
 Vemos que, além do nome das UFs, temos diversos dados, todos separados em total (final _t), homens (final _h) e mulheres (final _m).
 ```{r, message = FALSE, warning = FALSE}
 glimpse(pnadc)
-dim(pnadc)
 ```
 
 # Parte 1 - básico de manipulação de dados
 
 ## arrange
-A função *arrange* serve para reordenar o dataframe de acordo com alguma tabela. Por padrão, ela ordena do menor para o maior. Se quisermos do
+A função `arrange` serve para reordenar o dataframe de acordo com alguma coluna. Por padrão, ela ordena do menor para o maior. Se quisermos do maior ao menor, temos que incluir `desc` na chamada.
 De início, vejam que a tabela está ordenada alfabeticamente de acordo com o nome da UF. Assim, as 5 primeiras linhas são Acre, Alagoas, Amapá, Amazonas e Bahia
 ```{r, message = FALSE, warning = FALSE, output.lines=8}
 pnadc
@@ -102,7 +101,7 @@ Se quisermos ordenar pela UF de menor população ocupada, basta fazer
 ```{r, message = FALSE, warning = FALSE, output.lines=8}
 pnadc %>% arrange(ocup_t)
 ```
-Se, ao contrário, quisermos a de maior população ocupada, é preciso incluir o *desc*
+Se, ao contrário, quisermos a de maior população ocupada, é preciso incluir `desc`
 ```{r, message = FALSE, warning = FALSE, output.lines=8}
 pnadc %>% arrange(desc(ocup_t))
 ```
@@ -110,10 +109,10 @@ pnadc %>% arrange(desc(ocup_t))
 Vejam que, nos dois casos, a ordem das linhas mudou. As colunas, por outro lado, mantiveram a mesma ordem. Ademais, não há mudança no número de linhas e colunas.
 
 ## select
-A função *select* retorna um dataframe apenas com as colunas selecionadas pelo usuário.
+A função `select` retorna um dataframe apenas com as colunas selecionadas pelo usuário.
 Isso pode ocorrer pelo nome ou pela posição da coluna.
-Para saber o nome das colunas, basta usar a função colnames.
-No exemplo, vamos selecionar a coluna uf_nome (que está na posição 1) das duas formas.
+Para saber o nome das colunas, basta usar a função `colnames`.
+No exemplo, vamos selecionar a coluna *uf_nome* (que está na posição 1) das duas formas.
 ```{r, message = FALSE, warning = FALSE, output.lines=8}
 pnadc %>% colnames()
 pnadc %>% select(uf_nome)
@@ -126,20 +125,20 @@ Podemos selecionar várias colunas de uma só vez
 pnadc %>% select(uf_nome, pop_14_t, pop_14_h, pop_14_m)
 ```
 
-A função *select* também pode ser usada para reordenar as colunas. Por exemplo, se quisermos que a primeira coluna seja a força de trabalho (e o resto na mesma ordem), basta fazer
+A função `select` também pode ser usada para reordenar as colunas. Por exemplo, se quisermos que a primeira coluna seja a força de trabalho (e o resto na mesma ordem), basta fazer
 ```{r, message = FALSE, warning = FALSE, output.lines=8}
 pnadc %>% select(ft_t, everything())
 ```
 Sem o `everything()`, teríamos apenas a coluna *ft_t*
 
 ## mutate
-A função *mutate* cria novas colunas.
+A função `mutate` cria novas colunas ou modifica colunas já existentes.
 Por exemplo, temos a força de trabalho e a população ocupada. Podemos, assim, calcular a taxa de ocupação. Para isso:
 ```{r, message = FALSE, warning = FALSE, output.lines=8}
 pnadc %>% 
   mutate(tx_ocup = ocup_t/ft_t)
 ```
-Onde está a coluna que criamos? Por definição, o R coloca novas colunas no fim do df. Para vê-la antes, podemos usar *select* e *everything*
+Onde está a coluna que criamos? Por definição, o R coloca novas colunas no fim do df. Para vê-la antes, podemos usar `select` e `everything`
 ```{r, message = FALSE, warning = FALSE, output.lines=8}
 pnadc %>% 
   mutate(tx_ocup = ocup_t/ft_t) %>% 
@@ -147,7 +146,7 @@ pnadc %>%
 ```
 
 ## filter
-A função *filter* retorna um df apenas com as linhas que atendam a uma condição específica.
+A função `filter` retorna um df apenas com as linhas que atendam a uma condição específica.
 Por exemplo, se quisermos apenas as UFs com força de trabalho acima de 1 milhão de pessoas, fazemos (lembrando que os dados estão em mil pessoas)
 ```{r, message = FALSE, warning = FALSE, output.lines=8}
 pnadc %>% 
@@ -177,8 +176,8 @@ pnadc %>%
 ```
 
 ## summarise
-A função *summarise* serve para resumir as informações disponíveis no df.
-Sem outras alterações (que serão vistas mais à frente), a função *summarise* retorna um df com apenas 1 linha e quantas colunas forem criadas.
+A função `summarise` serve para resumir as informações disponíveis no df.
+Sem outras alterações (que serão vistas mais à frente), a função `summarise` retorna um df com apenas 1 linha e quantas colunas forem criadas.
 
 Por exemplo, se quisermos obter a soma da população ocupada de todas as UF, rodamos
 ```{r, message = FALSE, warning = FALSE, output.lines=8}
@@ -196,16 +195,16 @@ pnadc %>%
 
 ## join
 
-A função *join* serve para juntar dois dataframes a partir de uma chave. Uma chave é uma coluna que existe nos dois dataframes e permite relacionar ambos.
+A função `join` serve para juntar dois dataframes a partir de uma chave. Uma chave é uma coluna que existe nos dois dataframes e permite relacionar ambos.
 No caso, vamos juntar nosso df pnadc com o df codigo_uf
 ```{r, message = FALSE, warning = FALSE}
-codigo_uf <- read_csv2("./aula1/intro_r/cod_final.csv")
+codigo_uf <- read_csv2("./aula1/intro_r/codigos_uf.csv")
 codigo_uf %>% glimpse()
 ```
 
 O df codigo_uf tem 3 colunas: codigo da uf, nome da uf e região. A chave, então, é o nome da uf, que também está no df pnadc.
-Existem diversas modalidades de *join*: full, inner, left, right, anti e semi. Recomendo checar [esse site](https://rpubs.com/CristianaFreitas/311735) para uma explicação de cada.
-Aqui, como todas as UFs estão em ambos os df, não faz diferença entre full, inner, left ou right. Contudo, sempre temos que ter certeza do que queremos e escolher o join adequado.
+Existem diversas modalidades de `join`: *full*, *inner*, *left*, *right*, *anti* e *semi*. Recomendo checar [esse site](https://rpubs.com/CristianaFreitas/311735) para uma explicação de cada.
+Aqui, como todas as UFs estão em ambos os df, não faz diferença entre *full*, *inner*, *left* ou *right*. Contudo, sempre temos que ter certeza do que queremos e escolher o join adequado.
 
 ```{r, message = FALSE, warning = FALSE}
 pnadc_join <- pnadc %>% 
@@ -214,7 +213,7 @@ pnadc_join %>% dim()
 pnadc_join %>% colnames
 ```
 
-Vejam que não mudou o número de linhas, mas o df pnadc_join tem 18 colunas: é 1 de chave (uf_nome), as outras 15 do pnadc e as outras 2 do codigo_uf.
+Vejam que não mudou o número de linhas, mas o df pnadc_join tem 18 colunas: é 1 de chave (*uf_nome*), as outras 15 do pnadc e as outras 2 do codigo_uf.
 Vamos só reorganizar as colunas para ter o código e a região no início.
 ```{r, message = FALSE, warning = FALSE, output.lines=8}
 pnadc_join <- pnadc_join %>% 
@@ -224,7 +223,7 @@ pnadc_join
 
 ## group_by
 Até agora, nós só conseguíamos fazer cálculos por UF (cada linha) ou Brasil (df completo). No entanto, nosso novo df pnadc_join tem a variável região, que permite cálculos regionais. Para fazer isso, temos duas opções. A primeira é criar 5 dfs, um para cada região. Essa abordagem faz com que cada cálculo seja repetido 5 vezes no código, tornando-o mais difícil de ler e mais propenso a erros.
-A segunda opção é criar um df agrupado (grouped), através da função *group_by*. No caso, vamos agrupar por região.
+A segunda opção é criar um df agrupado (grouped), através da função `group_by`. No caso, vamos agrupar por região.
 
 ```{r, message = FALSE, warning = FALSE, output.lines=9}
 pnadc_regiao <- pnadc_join %>% 
@@ -232,24 +231,24 @@ pnadc_regiao <- pnadc_join %>%
 pnadc_regiao
 ```
 
-Visualmente, a diferença entre pnadc_join e pnadc_regiao é que no segundo aparece "Groups: regiao [5]" quando printamos. Podemos ver se um df está agrupado ou não com a função *is_grouped_df*.
+Visualmente, a diferença entre pnadc_join e pnadc_regiao é que no segundo aparece *"Groups: regiao [5]"* quando printamos. Podemos ver se um df está agrupado ou não com a função `is_grouped_df`.
 
 ```{r, message = FALSE, warning = FALSE, output.lines=9}
 pnadc_regiao %>% is_grouped_df()
 pnadc_join %>% is_grouped_df()
 ```
 
-Importante: para desfazer o *group_by*, precisamos usar a função *ungroup*
+Importante: para desfazer o `group_by`, precisamos usar a função `ungroup`
 ```{r, message = FALSE, warning = FALSE, output.lines=9}
 pnadc_regiao <- pnadc_regiao %>% 
   ungroup()
 pnadc_regiao %>% is_grouped_df()
 ```
 
-Vejam que agora a função *is_grouped_df* retorna `FALSE`.
+Vejam que agora a função `is_grouped_df` retorna `FALSE`.
 
 ### group_by + mutate
-Ao usar o *group_by* com *mutate*, criamos uma nova coluna. Essa coluna vai ter o mesmo valor para os elementos de um mesmo grupo. Por exemplo, como vamos agrupar por região, todas as UF do Sul terão o mesmo valor, todas as UF do Norte terão o mesmo valor e assim por diante
+Ao usar o `group_by` com `mutate`, criamos uma nova coluna. Essa coluna vai ter o mesmo valor para os elementos de um mesmo grupo. Por exemplo, como vamos agrupar por região, todas as UF do Sul terão o mesmo valor, todas as UF do Norte terão o mesmo valor e assim por diante
 
 
 ```{r, message = FALSE, warning = FALSE, output.lines=9}
@@ -260,11 +259,11 @@ pnadc_regiao %>%
   select(uf_codigo, uf_nome, regiao, ocup_sem_group_by, ocup_com_group_by, everything())
 ```
 
-Vejam que a coluna ocup_sem_group_by tem o mesmo valor para todas as UFs. Já a coluna ocup_com_group_by tem um valor para Acre, Amapá e Amazonas (a população ocupada no Norte) e outro para Alagoas e Bahia (a população ocupada no Nordeste).
-O *mutate* não retira nenhuma coluna e nenhuma linha do df
+Vejam que a coluna *ocup_sem_group_by* tem o mesmo valor para todas as UFs. Já a coluna *ocup_com_group_by* tem um valor para Acre, Amapá e Amazonas (a população ocupada no Norte) e outro para Alagoas e Bahia (a população ocupada no Nordeste).
+O `mutate` não retira nenhuma coluna e nenhuma linha do df
 
 ### group_by + summarise
-Ao usar o *group_by* com *summarise*, retornamos um novo df. Mas agora, o número de linhas é o número de categorias do nosso grupo (no caso, 5 regiões) e o numero de colunas é o número de grupos (no caso, 1 - as regiões) + o número de colunas que criamos.
+Ao usar o `group_by` com `summarise`, retornamos um novo df. Mas agora, o número de linhas é o número de categorias do nosso grupo (no caso, 5 regiões) e o numero de colunas é o número de grupos (no caso, 1 - as regiões) + o número de colunas que criamos.
 
 ```{r, message = FALSE, warning = FALSE, output.lines=9}
 pnadc_regiao %>% 
@@ -293,9 +292,9 @@ A continuação do ponto anterior - sempre começar o R do zero - é que é uma 
 Para isso, é muito comum ver o seguinte comando no início do código: `rm(list = ls())`.
 Isso é um problema porque, basicamente, esse comando não reinicia o R de fato. Ele apenas deleta objetos criados pelo usuário. Todos os pacotes já carregados continuam ativos, assim como diversas outras alterações. Não há nada de errado com `rm(list = ls())` - a questão é achar que isso garante a limpeza completa do R.
 
-Como exemplo, suponho que você está trabalhando com um script, no qual carrega o tidyverse `library(tidyverse)`. No meio do caminho, você decide criar um novo script para realizar cálculos auxiliares. Para "reiniciar" o R, você usa `rm(list = ls())`. Como vimos anteriormente, isso não coloca o R do zero, então as funções do `tidyverse` continuam ativas mesmo sem um chamado `library(tidyverse)` nesse segundo script - por exemplo, é possível criar uma coluna com a função mutate.
+Como exemplo, suponho que você está trabalhando com um script, no qual carrega o tidyverse `library(tidyverse)`. No meio do caminho, você decide criar um novo script para realizar cálculos auxiliares. Para "reiniciar" o R, você usa `rm(list = ls())`. Como vimos anteriormente, isso não coloca o R do zero, então as funções do `tidyverse` continuam ativas mesmo sem um chamado `library(tidyverse)` nesse segundo script - por exemplo, é possível criar uma coluna com a função `mutate`.
 
-Se por acaso você decide revisitar esse segundo script em outro momento (ou envia a uma pessoa), o script não vai rodar! Porque a função mutate não existe sem que o tidyverse (mais especificamente, o dplyr) esteja carregado! Isso pode criar um enorme problema, dependendo do tamanho do script e dos pacotes utilizados. Tudo isso poderia ter sido evitado com o reinício correto do R - o problema no segundo script seria encontrado (e possivelmente resolvido) na hora.
+Se por acaso você decide revisitar esse segundo script em outro momento (ou envia a uma pessoa), o script não vai rodar! Porque a função `mutate` não existe sem que o `tidyverse` (mais especificamente, o pacote `dplyr`) esteja carregado! Isso pode criar um enorme problema, dependendo do tamanho do script e dos pacotes utilizados. Tudo isso poderia ter sido evitado com o reinício correto do R - o problema no segundo script seria encontrado (e possivelmente resolvido) na hora.
 
 __Para reiniciar de verdade, basta ir em *Session > Restart R* ou usar o atalho Control+Shift+F10 (Windows e Linux) ou Command+Shift+F10 (Mac OS).__
 
@@ -310,15 +309,15 @@ Começando pela segunda, a abordagem favorecida aqui é a de criar um projeto (l
 Exceto a enorme questão de como definir o diretório de trabalho do R. Basicamente, o diretório deve ser especificado como a pasta-mãe que contém todos (e apenas) os arquivos que utilizamos no trabalho em questão. Para dizer ao R qual é essa pasta, temos ao menos duas opções: *setwd()* e usar *RProject*. Pelo título, dá para ver que eu privilegio a segunda.
 
 ### setwd()
-Muita gente usa *setwd* no início do script para definir o diretório de trabalho. 
+Muita gente usa `setwd()` no início do script para definir o diretório de trabalho. 
 Basicamente, essa abordagem consiste em explicitar o caminho da pasta-mãe em seu computador. Por exemplo, no meu computador, o diretório desse documento é:
 `setwd("C:\Users\prubi\Desktop\curso_pof")`
 Isso é conhecido como um caminho absoluto até a pasta.
 
-O principal problema de definir o diretório a partir do *setwd* é que a chance de isso funcionar em qualquer outro computador é essencialmente 0 - a não ser que alguém tenha o exato mesmo caminho que eu. Então, nossa análise deixa de estar auto-contida, pois faz referência a algo fora da pasta-mãe. Ela também não é reprodutível: qualquer pessoa que tente rodar esse script não vai conseguir, a não ser que mude o diretório em todos os scripts relevantes.
+O principal problema de definir o diretório a partir do `setwd()` é que a chance de isso funcionar em qualquer outro computador é essencialmente 0 - a não ser que alguém tenha o exato mesmo caminho que eu. Então, nossa análise deixa de estar auto-contida, pois faz referência a algo fora da pasta mãe. Ela também não é reprodutível: qualquer pessoa que tente rodar esse script não vai conseguir, a não ser que mude o diretório em todos os scripts relevantes.
 Isso afeta a própria pessoa que criou do script: se mudar de computador ou reorganizar os arquivos, nada mais vai rodar direito.
 
-Então, por mais que o *setwd* cumpra seu papel, ele cria as condições para surgirem problemas no futuro. 
+Então, por mais que o `setwd()` cumpra seu papel, ele cria as condições para surgirem problemas no futuro. 
 
 ### Utilizando um RProject
 
@@ -368,13 +367,12 @@ leitores_domicilio_1 <- tibble(
               14,
               1),
   codigo_da_variavel = c('UF','ESTRATO_POF','TIPO_SITUACAO_REG','COD_UPA',
-               'NUM_DOM','V0201',
-               'V0202','V0203','V0204','V0205','V0206','V0207','V0208','V0209','V02101',
-               'V02102','V02103','V02104','V02105','V02111','V02112','V02113','V0212','V0213',
-               'V02141','V02142','V0215','V02161','V02162','V02163','V02164','V0217','V0219','V0220',
-               'V0221','PESO','PESO_FINAL','V6199')
-) %>% 
-  mutate(posicao_final = posicao_inicial + tamanho -1) %>% 
+                         'NUM_DOM','V0201',
+                         'V0202','V0203','V0204','V0205','V0206','V0207','V0208','V0209','V02101',
+                         'V02102','V02103','V02104','V02105','V02111','V02112','V02113','V0212','V0213',
+                         'V02141','V02142','V0215','V02161','V02162','V02163','V02164','V0217','V0219','V0220',
+                         'V0221','PESO','PESO_FINAL','V6199')) %>% 
+  mutate(posicao_final = posicao_inicial + tamanho - 1) %>% 
   select(posicao_inicial, tamanho, posicao_final, codigo_da_variavel)
 
 ```
@@ -385,8 +383,8 @@ O problema dessa abordagem é que ela é muito trabalhosa, requer um alto nível
 A abordagem que eu uso é a de criar, a partir do arquivo dicionário, um arquivo *.csv* de leitores.
 ```{r, message = FALSE, warning = FALSE, output.lines=9}
 leitores_domicilio_2 <- readxl::read_excel("./documentacao/Dicionários de váriaveis.xls",
-                               sheet = "Domicílio",
-                               skip = 3) %>% 
+                                           sheet = "Domicílio",
+                                           skip = 3) %>% 
   janitor::clean_names() %>% 
   select(posicao_inicial, tamanho, codigo_da_variavel) %>% 
   filter(complete.cases(.)) %>% 
@@ -410,8 +408,8 @@ Como eu considero *leitores_domicilio_2* a melhor alternativa, vou usar como exe
 
 ```{r, message = FALSE, warning = FALSE, output.lines=9}
 colpos_domicilio <- fwf_positions(start = leitores_domicilio_2$posicao_inicial,
-                        end = leitores_domicilio_2$posicao_final,
-                        col_names = leitores_domicilio_2$codigo_da_variavel)
+                                  end = leitores_domicilio_2$posicao_final,
+                                  col_names = leitores_domicilio_2$codigo_da_variavel)
 
 colpos_domicilio
 ```
@@ -425,6 +423,8 @@ Por fim, recomendo criar uma pasta "leitores" e colocar nela todos as tabelas le
 ```
 
 Dois breves comentários. Primeiro, eu sou sempre favorável a manter os nomes de variáveis igual ao IBGE. Isso faz com que, no caso de dúvida, basta olhar no dicionário qual o significado. Se colocarmos outros nomes, precisaremos olhar em dois lugares: um para transformar o nome que demos no nome que o IBGE deu, e aí olhar no dicionário.
+
+
 Segundo, se já sabemos que variáveis vamos usar ou não, podemos simplesmente entrar no arquivo csv e deixar apenas as linhas das variáveis que usaremos. Por um lado, isso pode tornar o processo de leitura dos dados muito mais rápido e melhorar o desempenho do R, porque a tabela carregada será menor. Por outro, pode ser um pouco tedioso refazer todas as etapas se, no meio do caminho, percebermos que esquecemos de algo ou tivermos uma nova ideia. Isso só é possível porque fizemos leitores com posição inicial e posição final de cada variável. Se usássemos apenas o tamanho, precisaríamos ler todas as variáveis.
 
 
@@ -436,8 +436,8 @@ Agora temos tudo o que precisamos: os microdados em formato *.txt* (na pasta dad
 colpos_domicilio <- read_csv("./leitores/leitores_domicilio.csv")
 
 pof_domicilio <- read_fwf(file = "./dados/DOMICILIO.txt",
-                   col_positions = colpos_domicilio,
-                   col_types = cols(.default = col_character()))
+                          col_positions = colpos_domicilio,
+                          col_types = cols(.default = col_character()))
 ```
 
 E pronto! Se tudo estiver certo, já temos o registro Domicílio da POF carregado no R!
@@ -452,13 +452,13 @@ Apenas um comentário sobre o comando `col_types = cols(.default = col_character
 
 Por fim, não precisamos repetir esse processo toda vez. Podemos salvar a POF em *.rds*, que é o formato nativo do R - reduzindo muito o tempo necessário para carregar a POF.
 ```{r, message = FALSE, warning = FALSE, output.lines=9}
-pof_domicilio %>%
-  write_rds(file = "./dados/pof_domicilio.rds", compress = "gz")
+# pof_domicilio %>%
+#   write_rds(file = "./dados/pof_domicilio.rds", compress = "gz")
 ```
 
 Uma vez feito isso, para carregar os microdados, basta rodar
 ```{r, message = FALSE, warning = FALSE, output.lines=9}
-pof_domicilio <- read_rds("./dados/pof_domicilio.rds")
+# pof_domicilio <- read_rds("./dados/pof_domicilio.rds")
 ```
 
 
@@ -467,26 +467,26 @@ pof_domicilio <- read_rds("./dados/pof_domicilio.rds")
 Criar leitores *.csv* e arquivos *.rds* para os seguintes registros:
 
 * MORADOR
-  + 178431 linhas, 57 colunas
++ 178431 linhas, 57 colunas
 * ALUGUEL_ESTIMADO
-  + 48935 linhas, 19 colunas
++ 48935 linhas, 19 colunas
 * CADERNETA_COLETIVA
-  + 789995 linhas, 23 colunas
++ 789995 linhas, 23 colunas
 * DESPESA_COLETIVA
-  + 478572 linhas, 27 colunas
++ 478572 linhas, 27 colunas
 * DESPESA_INDIVIDUAL
-  + 1836032 linhas, 25 colunas
++ 1836032 linhas, 25 colunas
 * OUTROS_RENDIMENTOS
-  + 206108 linhas, 22 colunas
++ 206108 linhas, 22 colunas
 * RENDIMENTO_TRABALHO
-  + 97075 linhas, 37 colunas
++ 97075 linhas, 37 colunas
 
 ## Exercícios de revisão do R
 
-1. Temos dois arquivos *.csv* distintos e queremos fazer um *left_join*. Qual a coluna chave? Faça com que as colunas do arquivo *time_regiao.csv* estejam antes das colunas do arquivo *classif.csv* no df final. Salve essa nova tabela como *classif_final.csv*
+1. Temos dois arquivos *.csv* distintos e queremos fazer um `left_join`. Qual a coluna chave? Faça com que as colunas do arquivo *time_regiao.csv* estejam antes das colunas do arquivo *classif.csv* no df final. Salve essa nova tabela como *classif_final.csv*
 2. Crie colunas com o número de pontos (vitórias valem 3 pontos, empates valem 1 e derrotas valem 0), o número de jogos e o saldo de gols (gols pró menos gols contra) de cada time.
 3. O critério de desempate é número de pontos, número de vitórias e saldo de gols. Se fosse número de pontos, saldo de gols e número de vitórias, a classificação mudaria? Dê um exemplo.
-4. Em dois dfs distintos, apresente o nome, a pontuação e o número de gols dos 3 primeiros e os 4 últimos colocados (dica: funções *head* e *tail*).
+4. Em dois dfs distintos, apresente o nome, a pontuação e o número de gols dos 3 primeiros e os 4 últimos colocados (dica: funções `head` e `tail`).
 5. Filtre os times do Sul.
 6. Faça 2 df-síntese. O primeiro com o total, a média e a mediana dos pontos e o segundo com as mesmas informações, agrupado por região.
 
@@ -494,12 +494,12 @@ Criar leitores *.csv* e arquivos *.rds* para os seguintes registros:
 
 Não se esqueça de `library(tidyverse)`
 
-1. [A coluna chave é uma que está presente nos dois dfs e pode ser usada para juntá-los. A ordem do *left_join* é importante! A ordenação também pode ser feita com *select* (mas mais trabalhoso).]{.spoiler_dica}
-2. [Usar *mutate*. Pense em bons nomes para as colunas criadas.]{.spoiler_dica}
-3. [A função *arrange* pode envolver mais de uma coluna. A ordem importa!]{.spoiler_dica}
+1. [A coluna chave é uma que está presente nos dois dfs e pode ser usada para juntá-los. A ordem do `left_join` é importante! A ordenação também pode ser feita com `select` (mas mais trabalhoso).]{.spoiler_dica}
+2. [Usar `mutate`. Pense em bons nomes para as colunas criadas.]{.spoiler_dica}
+3. [A função `arrange` pode envolver mais de uma coluna. A ordem importa!]{.spoiler_dica}
 4. [Preste atenção no número de linhas e colunas! Veja a documentação com `?head` e `?tail`.]{.spoiler_dica}
 5. [Pense na diferença entre = e ==.]{.spoiler_dica}
-6. [Lembre que você pode criar várias colunas com *summarise*.]{.spoiler_dica}
+6. [Lembre que você pode criar várias colunas com `summarise`.]{.spoiler_dica}
 
 
 

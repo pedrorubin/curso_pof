@@ -372,54 +372,58 @@ pre code {
 
 <style type="text/css">
 .spoiler_dica {
-  visibility: hidden;
+visibility: hidden;
 }
 
 .spoiler_dica::before {
-  visibility: visible;
-  content: "Passe o mouse aqui para ver uma dica"
+visibility: visible;
+content: "Passe o mouse aqui para ver uma dica"
 }
 
 .spoiler_dica:hover {
-  visibility: visible;
+visibility: visible;
 }
 
 .spoiler_dica:hover::before {
-  display: none;
+display: none;
 }
 </style>
 <style type="text/css">
 .spoiler_resposta {
-  visibility: hidden;
+visibility: hidden;
 }
 
 .spoiler_resposta::before {
-  visibility: visible;
-  content: "Tente fazer por conta própria antes de ver uma possível resposta!"
+visibility: visible;
+content: "Tente fazer por conta própria antes de ver uma possível resposta!"
 }
 
 .spoiler_resposta:hover {
-  visibility: visible;
+visibility: visible;
 }
 
 .spoiler_resposta:hover::before {
-  display: none;
+display: none;
 }
 </style>
 <div id="introdução" class="section level1">
 <h1>Introdução</h1>
 <p>Essa revisão de R tem o objetivo de apresentar o básico necessário
 para o curso em R. Em linhas gerais, é preciso saber carregar pacotes,
-importar arquivos csv, os verbos do dplyr (arrange, select, mutate,
-filter, group_by, summarise), como juntar dois dataframes (join) e
-outras funções úteis que vão surgindo pelo caminho.</p>
+importar arquivos csv, os verbos do <code>dplyr</code>
+(<code>arrange</code>, <code>select</code>, <code>mutate</code>,
+<code>filter</code>, <code>group_by</code>, <code>summarise</code>),
+como juntar dois dataframes (<code>join</code>) e outras funções úteis
+que vão surgindo pelo caminho.</p>
 <div id="carregar-pacotes-e-importar-arquivos-csv" class="section level2">
 <h2>Carregar pacotes e importar arquivos csv</h2>
 <pre class="r"><code>library(tidyverse)
 pnadc &lt;- read_csv(&quot;./aula1/intro_r/pnadc_final.csv&quot;)</code></pre>
-<p>Para dar um panorama dos nossos dados, vamos usar a função glimpse.
-Vemos que, além do nome das UFs, temos diversos dados, todos separados
-em total (final _t), homens (final _h) e mulheres (final _m).</p>
+<p>Para dar um panorama dos nossos dados, vamos usar a função
+<code>glimpse</code>, que nos mostra todas a dimensão e todas as colunas
+do nosso df. Vemos que, além do nome das UFs, temos diversos dados,
+todos separados em total (final _t), homens (final _h) e mulheres (final
+_m).</p>
 <pre class="r"><code>glimpse(pnadc)</code></pre>
 <pre><code>## Rows: 27
 ## Columns: 16
@@ -439,19 +443,18 @@ em total (final _t), homens (final _h) e mulheres (final _m).</p>
 ## $ foraft_t  &lt;dbl&gt; 286, 1390, 230, 1116, 4745, 3102, 775, 1023, 1813, 2696, 850…
 ## $ foraft_h  &lt;dbl&gt; 109, 523, 75, 391, 1744, 1116, 281, 339, 626, 1073, 269, 235…
 ## $ foraft_m  &lt;dbl&gt; 177, 866, 155, 724, 3001, 1986, 494, 684, 1186, 1623, 581, 4…</code></pre>
-<pre class="r"><code>dim(pnadc)</code></pre>
-<pre><code>## [1] 27 16</code></pre>
 </div>
 </div>
 <div id="parte-1---básico-de-manipulação-de-dados" class="section level1">
 <h1>Parte 1 - básico de manipulação de dados</h1>
 <div id="arrange" class="section level2">
 <h2>arrange</h2>
-<p>A função <em>arrange</em> serve para reordenar o dataframe de acordo
-com alguma tabela. Por padrão, ela ordena do menor para o maior. Se
-quisermos do De início, vejam que a tabela está ordenada alfabeticamente
-de acordo com o nome da UF. Assim, as 5 primeiras linhas são Acre,
-Alagoas, Amapá, Amazonas e Bahia</p>
+<p>A função <code>arrange</code> serve para reordenar o dataframe de
+acordo com alguma coluna. Por padrão, ela ordena do menor para o maior.
+Se quisermos do maior ao menor, temos que incluir <code>desc</code> na
+chamada. De início, vejam que a tabela está ordenada alfabeticamente de
+acordo com o nome da UF. Assim, as 5 primeiras linhas são Acre, Alagoas,
+Amapá, Amazonas e Bahia</p>
 <pre class="r"><code>pnadc</code></pre>
 <pre><code>## # A tibble: 27 × 16
 ##    uf_nome     pop_14_t pop_14_h pop_14_m  ft_t  ft_h  ft_m ocup_t ocup_h ocup_m
@@ -475,7 +478,7 @@ fazer</p>
 ##  5 Rondonia        1370      686      684   871   532   339    792    496    296
 ...</code></pre>
 <p>Se, ao contrário, quisermos a de maior população ocupada, é preciso
-incluir o <em>desc</em></p>
+incluir <code>desc</code></p>
 <pre class="r"><code>pnadc %&gt;% arrange(desc(ocup_t))</code></pre>
 <pre><code>## # A tibble: 27 × 16
 ##    uf_nome     pop_14_t pop_14_h pop_14_m  ft_t  ft_h  ft_m ocup_t ocup_h ocup_m
@@ -492,11 +495,11 @@ de linhas e colunas.</p>
 </div>
 <div id="select" class="section level2">
 <h2>select</h2>
-<p>A função <em>select</em> retorna um dataframe apenas com as colunas
-selecionadas pelo usuário. Isso pode ocorrer pelo nome ou pela posição
-da coluna. Para saber o nome das colunas, basta usar a função colnames.
-No exemplo, vamos selecionar a coluna uf_nome (que está na posição 1)
-das duas formas.</p>
+<p>A função <code>select</code> retorna um dataframe apenas com as
+colunas selecionadas pelo usuário. Isso pode ocorrer pelo nome ou pela
+posição da coluna. Para saber o nome das colunas, basta usar a função
+<code>colnames</code>. No exemplo, vamos selecionar a coluna
+<em>uf_nome</em> (que está na posição 1) das duas formas.</p>
 <pre class="r"><code>pnadc %&gt;% colnames()</code></pre>
 <pre><code>##  [1] &quot;uf_nome&quot;   &quot;pop_14_t&quot;  &quot;pop_14_h&quot;  &quot;pop_14_m&quot;  &quot;ft_t&quot;      &quot;ft_h&quot;     
 ##  [7] &quot;ft_m&quot;      &quot;ocup_t&quot;    &quot;ocup_h&quot;    &quot;ocup_m&quot;    &quot;desocup_t&quot; &quot;desocup_h&quot;
@@ -535,7 +538,7 @@ que queremos.</p>
 ##  4 Amazonas             2960     1481     1480
 ##  5 Bahia               11817     5744     6073
 ...</code></pre>
-<p>A função <em>select</em> também pode ser usada para reordenar as
+<p>A função <code>select</code> também pode ser usada para reordenar as
 colunas. Por exemplo, se quisermos que a primeira coluna seja a força de
 trabalho (e o resto na mesma ordem), basta fazer</p>
 <pre class="r"><code>pnadc %&gt;% select(ft_t, everything())</code></pre>
@@ -553,9 +556,9 @@ trabalho (e o resto na mesma ordem), basta fazer</p>
 </div>
 <div id="mutate" class="section level2">
 <h2>mutate</h2>
-<p>A função <em>mutate</em> cria novas colunas. Por exemplo, temos a
-força de trabalho e a população ocupada. Podemos, assim, calcular a taxa
-de ocupação. Para isso:</p>
+<p>A função <code>mutate</code> cria novas colunas ou modifica colunas
+já existentes. Por exemplo, temos a força de trabalho e a população
+ocupada. Podemos, assim, calcular a taxa de ocupação. Para isso:</p>
 <pre class="r"><code>pnadc %&gt;% 
   mutate(tx_ocup = ocup_t/ft_t)</code></pre>
 <pre><code>## # A tibble: 27 × 17
@@ -568,8 +571,8 @@ de ocupação. Para isso:</p>
 ##  5 Bahia          11817     5744     6073  7073  4001  3072   5765   3375   2391
 ...</code></pre>
 <p>Onde está a coluna que criamos? Por definição, o R coloca novas
-colunas no fim do df. Para vê-la antes, podemos usar <em>select</em> e
-<em>everything</em></p>
+colunas no fim do df. Para vê-la antes, podemos usar <code>select</code>
+e <code>everything</code></p>
 <pre class="r"><code>pnadc %&gt;% 
   mutate(tx_ocup = ocup_t/ft_t) %&gt;% 
   select(uf_nome, tx_ocup, everything())</code></pre>
@@ -585,7 +588,7 @@ colunas no fim do df. Para vê-la antes, podemos usar <em>select</em> e
 </div>
 <div id="filter" class="section level2">
 <h2>filter</h2>
-<p>A função <em>filter</em> retorna um df apenas com as linhas que
+<p>A função <code>filter</code> retorna um df apenas com as linhas que
 atendam a uma condição específica. Por exemplo, se quisermos apenas as
 UFs com força de trabalho acima de 1 milhão de pessoas, fazemos
 (lembrando que os dados estão em mil pessoas)</p>
@@ -647,10 +650,10 @@ pessoas ou população desocupada feminina inferior à masculina</p>
 </div>
 <div id="summarise" class="section level2">
 <h2>summarise</h2>
-<p>A função <em>summarise</em> serve para resumir as informações
+<p>A função <code>summarise</code> serve para resumir as informações
 disponíveis no df. Sem outras alterações (que serão vistas mais à
-frente), a função <em>summarise</em> retorna um df com apenas 1 linha e
-quantas colunas forem criadas.</p>
+frente), a função <code>summarise</code> retorna um df com apenas 1
+linha e quantas colunas forem criadas.</p>
 <p>Por exemplo, se quisermos obter a soma da população ocupada de todas
 as UF, rodamos</p>
 <pre class="r"><code>pnadc %&gt;% 
@@ -672,11 +675,11 @@ feminina do país</p>
 </div>
 <div id="join" class="section level2">
 <h2>join</h2>
-<p>A função <em>join</em> serve para juntar dois dataframes a partir de
-uma chave. Uma chave é uma coluna que existe nos dois dataframes e
+<p>A função <code>join</code> serve para juntar dois dataframes a partir
+de uma chave. Uma chave é uma coluna que existe nos dois dataframes e
 permite relacionar ambos. No caso, vamos juntar nosso df pnadc com o df
 codigo_uf</p>
-<pre class="r"><code>codigo_uf &lt;- read_csv2(&quot;./aula1/intro_r/cod_final.csv&quot;)
+<pre class="r"><code>codigo_uf &lt;- read_csv2(&quot;./aula1/intro_r/codigos_uf.csv&quot;)
 codigo_uf %&gt;% glimpse()</code></pre>
 <pre><code>## Rows: 27
 ## Columns: 3
@@ -685,11 +688,13 @@ codigo_uf %&gt;% glimpse()</code></pre>
 ## $ regiao    &lt;chr&gt; &quot;N&quot;, &quot;N&quot;, &quot;N&quot;, &quot;N&quot;, &quot;N&quot;, &quot;N&quot;, &quot;N&quot;, &quot;NE&quot;, &quot;NE&quot;, &quot;NE&quot;, &quot;NE&quot;, &quot;…</code></pre>
 <p>O df codigo_uf tem 3 colunas: codigo da uf, nome da uf e região. A
 chave, então, é o nome da uf, que também está no df pnadc. Existem
-diversas modalidades de <em>join</em>: full, inner, left, right, anti e
-semi. Recomendo checar <a href="https://rpubs.com/CristianaFreitas/311735">esse site</a> para uma
+diversas modalidades de <code>join</code>: <em>full</em>,
+<em>inner</em>, <em>left</em>, <em>right</em>, <em>anti</em> e
+<em>semi</em>. Recomendo checar <a href="https://rpubs.com/CristianaFreitas/311735">esse site</a> para uma
 explicação de cada. Aqui, como todas as UFs estão em ambos os df, não
-faz diferença entre full, inner, left ou right. Contudo, sempre temos
-que ter certeza do que queremos e escolher o join adequado.</p>
+faz diferença entre <em>full</em>, <em>inner</em>, <em>left</em> ou
+<em>right</em>. Contudo, sempre temos que ter certeza do que queremos e
+escolher o join adequado.</p>
 <pre class="r"><code>pnadc_join &lt;- pnadc %&gt;% 
   full_join(codigo_uf, by = &quot;uf_nome&quot;)
 pnadc_join %&gt;% dim()</code></pre>
@@ -699,9 +704,9 @@ pnadc_join %&gt;% dim()</code></pre>
 ##  [7] &quot;ft_m&quot;      &quot;ocup_t&quot;    &quot;ocup_h&quot;    &quot;ocup_m&quot;    &quot;desocup_t&quot; &quot;desocup_h&quot;
 ## [13] &quot;desocup_m&quot; &quot;foraft_t&quot;  &quot;foraft_h&quot;  &quot;foraft_m&quot;  &quot;uf_codigo&quot; &quot;regiao&quot;</code></pre>
 <p>Vejam que não mudou o número de linhas, mas o df pnadc_join tem 18
-colunas: é 1 de chave (uf_nome), as outras 15 do pnadc e as outras 2 do
-codigo_uf. Vamos só reorganizar as colunas para ter o código e a região
-no início.</p>
+colunas: é 1 de chave (<em>uf_nome</em>), as outras 15 do pnadc e as
+outras 2 do codigo_uf. Vamos só reorganizar as colunas para ter o código
+e a região no início.</p>
 <pre class="r"><code>pnadc_join &lt;- pnadc_join %&gt;% 
   select(uf_codigo, uf_nome, regiao, everything())
 pnadc_join</code></pre>
@@ -723,8 +728,8 @@ variável região, que permite cálculos regionais. Para fazer isso, temos
 duas opções. A primeira é criar 5 dfs, um para cada região. Essa
 abordagem faz com que cada cálculo seja repetido 5 vezes no código,
 tornando-o mais difícil de ler e mais propenso a erros. A segunda opção
-é criar um df agrupado (grouped), através da função <em>group_by</em>.
-No caso, vamos agrupar por região.</p>
+é criar um df agrupado (grouped), através da função
+<code>group_by</code>. No caso, vamos agrupar por região.</p>
 <pre class="r"><code>pnadc_regiao &lt;- pnadc_join %&gt;% 
   group_by(regiao)
 pnadc_regiao</code></pre>
@@ -739,27 +744,28 @@ pnadc_regiao</code></pre>
 ##  5        29 Bahia    NE        11817     5744     6073  7073  4001  3072   5765
 ...</code></pre>
 <p>Visualmente, a diferença entre pnadc_join e pnadc_regiao é que no
-segundo aparece “Groups: regiao [5]” quando printamos. Podemos ver se um
-df está agrupado ou não com a função <em>is_grouped_df</em>.</p>
+segundo aparece <em>“Groups: regiao [5]”</em> quando printamos. Podemos
+ver se um df está agrupado ou não com a função
+<code>is_grouped_df</code>.</p>
 <pre class="r"><code>pnadc_regiao %&gt;% is_grouped_df()</code></pre>
 <pre><code>## [1] TRUE</code></pre>
 <pre class="r"><code>pnadc_join %&gt;% is_grouped_df()</code></pre>
 <pre><code>## [1] FALSE</code></pre>
-<p>Importante: para desfazer o <em>group_by</em>, precisamos usar a
-função <em>ungroup</em></p>
+<p>Importante: para desfazer o <code>group_by</code>, precisamos usar a
+função <code>ungroup</code></p>
 <pre class="r"><code>pnadc_regiao &lt;- pnadc_regiao %&gt;% 
   ungroup()
 pnadc_regiao %&gt;% is_grouped_df()</code></pre>
 <pre><code>## [1] FALSE</code></pre>
-<p>Vejam que agora a função <em>is_grouped_df</em> retorna
+<p>Vejam que agora a função <code>is_grouped_df</code> retorna
 <code>FALSE</code>.</p>
 <div id="group_by-mutate" class="section level3">
 <h3>group_by + mutate</h3>
-<p>Ao usar o <em>group_by</em> com <em>mutate</em>, criamos uma nova
-coluna. Essa coluna vai ter o mesmo valor para os elementos de um mesmo
-grupo. Por exemplo, como vamos agrupar por região, todas as UF do Sul
-terão o mesmo valor, todas as UF do Norte terão o mesmo valor e assim
-por diante</p>
+<p>Ao usar o <code>group_by</code> com <code>mutate</code>, criamos uma
+nova coluna. Essa coluna vai ter o mesmo valor para os elementos de um
+mesmo grupo. Por exemplo, como vamos agrupar por região, todas as UF do
+Sul terão o mesmo valor, todas as UF do Norte terão o mesmo valor e
+assim por diante</p>
 <pre class="r"><code>pnadc_regiao %&gt;% 
   mutate(ocup_sem_group_by = sum(ocup_t)) %&gt;% 
   group_by(regiao) %&gt;% 
@@ -775,18 +781,19 @@ por diante</p>
 ##  4        13 Amazonas N                 92621             7178     2960     1481
 ##  5        29 Bahia    NE                92621            21119    11817     5744
 ...</code></pre>
-<p>Vejam que a coluna ocup_sem_group_by tem o mesmo valor para todas as
-UFs. Já a coluna ocup_com_group_by tem um valor para Acre, Amapá e
-Amazonas (a população ocupada no Norte) e outro para Alagoas e Bahia (a
-população ocupada no Nordeste). O <em>mutate</em> não retira nenhuma
-coluna e nenhuma linha do df</p>
+<p>Vejam que a coluna <em>ocup_sem_group_by</em> tem o mesmo valor para
+todas as UFs. Já a coluna <em>ocup_com_group_by</em> tem um valor para
+Acre, Amapá e Amazonas (a população ocupada no Norte) e outro para
+Alagoas e Bahia (a população ocupada no Nordeste). O <code>mutate</code>
+não retira nenhuma coluna e nenhuma linha do df</p>
 </div>
 <div id="group_by-summarise" class="section level3">
 <h3>group_by + summarise</h3>
-<p>Ao usar o <em>group_by</em> com <em>summarise</em>, retornamos um
-novo df. Mas agora, o número de linhas é o número de categorias do nosso
-grupo (no caso, 5 regiões) e o numero de colunas é o número de grupos
-(no caso, 1 - as regiões) + o número de colunas que criamos.</p>
+<p>Ao usar o <code>group_by</code> com <code>summarise</code>,
+retornamos um novo df. Mas agora, o número de linhas é o número de
+categorias do nosso grupo (no caso, 5 regiões) e o numero de colunas é o
+número de grupos (no caso, 1 - as regiões) + o número de colunas que
+criamos.</p>
 <pre class="r"><code>pnadc_regiao %&gt;% 
   group_by(regiao) %&gt;% 
   summarise(ocup_com_group_by = sum(ocup_t))</code></pre>
@@ -850,14 +857,15 @@ auxiliares. Para “reiniciar” o R, você usa <code>rm(list = ls())</code>.
 Como vimos anteriormente, isso não coloca o R do zero, então as funções
 do <code>tidyverse</code> continuam ativas mesmo sem um chamado
 <code>library(tidyverse)</code> nesse segundo script - por exemplo, é
-possível criar uma coluna com a função mutate.</p>
+possível criar uma coluna com a função <code>mutate</code>.</p>
 <p>Se por acaso você decide revisitar esse segundo script em outro
 momento (ou envia a uma pessoa), o script não vai rodar! Porque a função
-mutate não existe sem que o tidyverse (mais especificamente, o dplyr)
-esteja carregado! Isso pode criar um enorme problema, dependendo do
-tamanho do script e dos pacotes utilizados. Tudo isso poderia ter sido
-evitado com o reinício correto do R - o problema no segundo script seria
-encontrado (e possivelmente resolvido) na hora.</p>
+<code>mutate</code> não existe sem que o <code>tidyverse</code> (mais
+especificamente, o pacote <code>dplyr</code>) esteja carregado! Isso
+pode criar um enorme problema, dependendo do tamanho do script e dos
+pacotes utilizados. Tudo isso poderia ter sido evitado com o reinício
+correto do R - o problema no segundo script seria encontrado (e
+possivelmente resolvido) na hora.</p>
 <p><strong>Para reiniciar de verdade, basta ir em <em>Session &gt;
 Restart R</em> ou usar o atalho Control+Shift+F10 (Windows e Linux) ou
 Command+Shift+F10 (Mac OS).</strong></p>
@@ -892,23 +900,23 @@ questão. Para dizer ao R qual é essa pasta, temos ao menos duas opções:
 eu privilegio a segunda.</p>
 <div id="setwd" class="section level3">
 <h3>setwd()</h3>
-<p>Muita gente usa <em>setwd</em> no início do script para definir o
-diretório de trabalho. Basicamente, essa abordagem consiste em
+<p>Muita gente usa <code>setwd()</code> no início do script para definir
+o diretório de trabalho. Basicamente, essa abordagem consiste em
 explicitar o caminho da pasta-mãe em seu computador. Por exemplo, no meu
 computador, o diretório desse documento é:
 <code>setwd(&quot;C:\Users\prubi\Desktop\curso_pof&quot;)</code> Isso é conhecido
 como um caminho absoluto até a pasta.</p>
 <p>O principal problema de definir o diretório a partir do
-<em>setwd</em> é que a chance de isso funcionar em qualquer outro
+<code>setwd()</code> é que a chance de isso funcionar em qualquer outro
 computador é essencialmente 0 - a não ser que alguém tenha o exato mesmo
 caminho que eu. Então, nossa análise deixa de estar auto-contida, pois
-faz referência a algo fora da pasta-mãe. Ela também não é reprodutível:
+faz referência a algo fora da pasta mãe. Ela também não é reprodutível:
 qualquer pessoa que tente rodar esse script não vai conseguir, a não ser
 que mude o diretório em todos os scripts relevantes. Isso afeta a
 própria pessoa que criou do script: se mudar de computador ou
 reorganizar os arquivos, nada mais vai rodar direito.</p>
-<p>Então, por mais que o <em>setwd</em> cumpra seu papel, ele cria as
-condições para surgirem problemas no futuro.</p>
+<p>Então, por mais que o <code>setwd()</code> cumpra seu papel, ele cria
+as condições para surgirem problemas no futuro.</p>
 </div>
 <div id="utilizando-um-rproject" class="section level3">
 <h3>Utilizando um RProject</h3>
@@ -989,13 +997,12 @@ forma:</p>
               14,
               1),
   codigo_da_variavel = c(&#39;UF&#39;,&#39;ESTRATO_POF&#39;,&#39;TIPO_SITUACAO_REG&#39;,&#39;COD_UPA&#39;,
-               &#39;NUM_DOM&#39;,&#39;V0201&#39;,
-               &#39;V0202&#39;,&#39;V0203&#39;,&#39;V0204&#39;,&#39;V0205&#39;,&#39;V0206&#39;,&#39;V0207&#39;,&#39;V0208&#39;,&#39;V0209&#39;,&#39;V02101&#39;,
-               &#39;V02102&#39;,&#39;V02103&#39;,&#39;V02104&#39;,&#39;V02105&#39;,&#39;V02111&#39;,&#39;V02112&#39;,&#39;V02113&#39;,&#39;V0212&#39;,&#39;V0213&#39;,
-               &#39;V02141&#39;,&#39;V02142&#39;,&#39;V0215&#39;,&#39;V02161&#39;,&#39;V02162&#39;,&#39;V02163&#39;,&#39;V02164&#39;,&#39;V0217&#39;,&#39;V0219&#39;,&#39;V0220&#39;,
-               &#39;V0221&#39;,&#39;PESO&#39;,&#39;PESO_FINAL&#39;,&#39;V6199&#39;)
-) %&gt;% 
-  mutate(posicao_final = posicao_inicial + tamanho -1) %&gt;% 
+                         &#39;NUM_DOM&#39;,&#39;V0201&#39;,
+                         &#39;V0202&#39;,&#39;V0203&#39;,&#39;V0204&#39;,&#39;V0205&#39;,&#39;V0206&#39;,&#39;V0207&#39;,&#39;V0208&#39;,&#39;V0209&#39;,&#39;V02101&#39;,
+                         &#39;V02102&#39;,&#39;V02103&#39;,&#39;V02104&#39;,&#39;V02105&#39;,&#39;V02111&#39;,&#39;V02112&#39;,&#39;V02113&#39;,&#39;V0212&#39;,&#39;V0213&#39;,
+                         &#39;V02141&#39;,&#39;V02142&#39;,&#39;V0215&#39;,&#39;V02161&#39;,&#39;V02162&#39;,&#39;V02163&#39;,&#39;V02164&#39;,&#39;V0217&#39;,&#39;V0219&#39;,&#39;V0220&#39;,
+                         &#39;V0221&#39;,&#39;PESO&#39;,&#39;PESO_FINAL&#39;,&#39;V6199&#39;)) %&gt;% 
+  mutate(posicao_final = posicao_inicial + tamanho - 1) %&gt;% 
   select(posicao_inicial, tamanho, posicao_final, codigo_da_variavel)</code></pre>
 <p>O problema dessa abordagem é que ela é muito trabalhosa, requer um
 alto nível de atenção, aumenta desnecessariamente o tamanho do código, é
@@ -1007,8 +1014,8 @@ esses erros.</p>
 <p>A abordagem que eu uso é a de criar, a partir do arquivo dicionário,
 um arquivo <em>.csv</em> de leitores.</p>
 <pre class="r"><code>leitores_domicilio_2 &lt;- readxl::read_excel(&quot;./documentacao/Dicionários de váriaveis.xls&quot;,
-                               sheet = &quot;Domicílio&quot;,
-                               skip = 3) %&gt;% 
+                                           sheet = &quot;Domicílio&quot;,
+                                           skip = 3) %&gt;% 
   janitor::clean_names() %&gt;% 
   select(posicao_inicial, tamanho, codigo_da_variavel) %&gt;% 
   filter(complete.cases(.)) %&gt;% 
@@ -1049,8 +1056,8 @@ que o R precisa para ler os microdados. Como eu considero
 <em>leitores_domicilio_2</em> a melhor alternativa, vou usar como
 exemplo.</p>
 <pre class="r"><code>colpos_domicilio &lt;- fwf_positions(start = leitores_domicilio_2$posicao_inicial,
-                        end = leitores_domicilio_2$posicao_final,
-                        col_names = leitores_domicilio_2$codigo_da_variavel)
+                                  end = leitores_domicilio_2$posicao_final,
+                                  col_names = leitores_domicilio_2$codigo_da_variavel)
 
 colpos_domicilio</code></pre>
 <pre><code>## # A tibble: 38 × 3
@@ -1073,8 +1080,8 @@ tabelas leitores em formato csv:</p>
 os nomes de variáveis igual ao IBGE. Isso faz com que, no caso de
 dúvida, basta olhar no dicionário qual o significado. Se colocarmos
 outros nomes, precisaremos olhar em dois lugares: um para transformar o
-nome que demos no nome que o IBGE deu, e aí olhar no dicionário.
-Segundo, se já sabemos que variáveis vamos usar ou não, podemos
+nome que demos no nome que o IBGE deu, e aí olhar no dicionário.</p>
+<p>Segundo, se já sabemos que variáveis vamos usar ou não, podemos
 simplesmente entrar no arquivo csv e deixar apenas as linhas das
 variáveis que usaremos. Por um lado, isso pode tornar o processo de
 leitura dos dados muito mais rápido e melhorar o desempenho do R, porque
@@ -1093,8 +1100,8 @@ da POF no IBGE</a>) e o arquivo de leitores já no formato certo.</p>
 <pre class="r"><code>colpos_domicilio &lt;- read_csv(&quot;./leitores/leitores_domicilio.csv&quot;)
 
 pof_domicilio &lt;- read_fwf(file = &quot;./dados/DOMICILIO.txt&quot;,
-                   col_positions = colpos_domicilio,
-                   col_types = cols(.default = col_character()))</code></pre>
+                          col_positions = colpos_domicilio,
+                          col_types = cols(.default = col_character()))</code></pre>
 <p>E pronto! Se tudo estiver certo, já temos o registro Domicílio da POF
 carregado no R!</p>
 <pre class="r"><code>pof_domicilio</code></pre>
@@ -1120,10 +1127,10 @@ para mim.</p>
 <p>Por fim, não precisamos repetir esse processo toda vez. Podemos
 salvar a POF em <em>.rds</em>, que é o formato nativo do R - reduzindo
 muito o tempo necessário para carregar a POF.</p>
-<pre class="r"><code>pof_domicilio %&gt;%
-  write_rds(file = &quot;./dados/pof_domicilio.rds&quot;, compress = &quot;gz&quot;)</code></pre>
+<pre class="r"><code># pof_domicilio %&gt;%
+#   write_rds(file = &quot;./dados/pof_domicilio.rds&quot;, compress = &quot;gz&quot;)</code></pre>
 <p>Uma vez feito isso, para carregar os microdados, basta rodar</p>
-<pre class="r"><code>pof_domicilio &lt;- read_rds(&quot;./dados/pof_domicilio.rds&quot;)</code></pre>
+<pre class="r"><code># pof_domicilio &lt;- read_rds(&quot;./dados/pof_domicilio.rds&quot;)</code></pre>
 </div>
 </div>
 <div id="para-fazer-solo-antes-da-próxima-aula" class="section level1">
@@ -1131,40 +1138,26 @@ muito o tempo necessário para carregar a POF.</p>
 <p>Criar leitores <em>.csv</em> e arquivos <em>.rds</em> para os
 seguintes registros:</p>
 <ul>
-<li>MORADOR
-<ul>
+<li>MORADOR</li>
 <li>178431 linhas, 57 colunas</li>
-</ul></li>
-<li>ALUGUEL_ESTIMADO
-<ul>
+<li>ALUGUEL_ESTIMADO</li>
 <li>48935 linhas, 19 colunas</li>
-</ul></li>
-<li>CADERNETA_COLETIVA
-<ul>
+<li>CADERNETA_COLETIVA</li>
 <li>789995 linhas, 23 colunas</li>
-</ul></li>
-<li>DESPESA_COLETIVA
-<ul>
+<li>DESPESA_COLETIVA</li>
 <li>478572 linhas, 27 colunas</li>
-</ul></li>
-<li>DESPESA_INDIVIDUAL
-<ul>
+<li>DESPESA_INDIVIDUAL</li>
 <li>1836032 linhas, 25 colunas</li>
-</ul></li>
-<li>OUTROS_RENDIMENTOS
-<ul>
+<li>OUTROS_RENDIMENTOS</li>
 <li>206108 linhas, 22 colunas</li>
-</ul></li>
-<li>RENDIMENTO_TRABALHO
-<ul>
+<li>RENDIMENTO_TRABALHO</li>
 <li>97075 linhas, 37 colunas</li>
-</ul></li>
 </ul>
 <div id="exercícios-de-revisão-do-r" class="section level2">
 <h2>Exercícios de revisão do R</h2>
 <ol style="list-style-type: decimal">
 <li>Temos dois arquivos <em>.csv</em> distintos e queremos fazer um
-<em>left_join</em>. Qual a coluna chave? Faça com que as colunas do
+<code>left_join</code>. Qual a coluna chave? Faça com que as colunas do
 arquivo <em>time_regiao.csv</em> estejam antes das colunas do arquivo
 <em>classif.csv</em> no df final. Salve essa nova tabela como
 <em>classif_final.csv</em></li>
@@ -1176,7 +1169,7 @@ saldo de gols. Se fosse número de pontos, saldo de gols e número de
 vitórias, a classificação mudaria? Dê um exemplo.</li>
 <li>Em dois dfs distintos, apresente o nome, a pontuação e o número de
 gols dos 3 primeiros e os 4 últimos colocados (dica: funções
-<em>head</em> e <em>tail</em>).</li>
+<code>head</code> e <code>tail</code>).</li>
 <li>Filtre os times do Sul.</li>
 <li>Faça 2 df-síntese. O primeiro com o total, a média e a mediana dos
 pontos e o segundo com as mesmas informações, agrupado por região.</li>
@@ -1187,19 +1180,19 @@ pontos e o segundo com as mesmas informações, agrupado por região.</li>
 <ol style="list-style-type: decimal">
 <li><span class="spoiler_dica">A coluna chave é uma que está presente
 nos dois dfs e pode ser usada para juntá-los. A ordem do
-<em>left_join</em> é importante! A ordenação também pode ser feita com
-<em>select</em> (mas mais trabalhoso).</span></li>
-<li><span class="spoiler_dica">Usar <em>mutate</em>. Pense em bons nomes
-para as colunas criadas.</span></li>
-<li><span class="spoiler_dica">A função <em>arrange</em> pode envolver
-mais de uma coluna. A ordem importa!</span></li>
+<code>left_join</code> é importante! A ordenação também pode ser feita
+com <code>select</code> (mas mais trabalhoso).</span></li>
+<li><span class="spoiler_dica">Usar <code>mutate</code>. Pense em bons
+nomes para as colunas criadas.</span></li>
+<li><span class="spoiler_dica">A função <code>arrange</code> pode
+envolver mais de uma coluna. A ordem importa!</span></li>
 <li><span class="spoiler_dica">Preste atenção no número de linhas e
 colunas! Veja a documentação com <code>?head</code> e
 <code>?tail</code>.</span></li>
 <li><span class="spoiler_dica">Pense na diferença entre = e
 ==.</span></li>
 <li><span class="spoiler_dica">Lembre que você pode criar várias colunas
-com <em>summarise</em>.</span></li>
+com <code>summarise</code>.</span></li>
 </ol>
 </div>
 </div>

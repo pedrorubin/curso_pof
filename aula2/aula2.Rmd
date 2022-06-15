@@ -36,15 +36,15 @@ knit_hooks$set(output = function(x, options) {
 # Domicílios, Unidades de Consumo e Pessoas
 
 Na aula passada, vimos que os domicílios são a unidade amostral, enquando as unidades de consumo (UC) são a unidade básica de pesquisa.
-Em linhas gerais, isso significa que a seleção de pessoas entrevistadas pela POF se dá pela seleção dos domicílio, no procedimento descrito anteriormente. E que as informações da pesquisa são agregadas, no nível mais básico, por unidades de consumo. Ou seja, ao contrário da PNAD Contínua Anual, na qual a renda per capita (por exemplo) significa a renda média dos moradores de um mesmo domicílio, na POF ela significa a renda média dos membros da unidade de consumo.
+Em linhas gerais, isso significa que a seleção de pessoas entrevistadas pela POF se dá pela seleção dos domicílios, no procedimento descrito anteriormente. E que as informações da pesquisa são agregadas, no nível mais básico, por unidades de consumo. Ou seja, ao contrário da PNAD Contínua Anual, na qual a renda per capita (por exemplo) significa a renda média dos moradores de um mesmo domicílio, na POF ela significa a renda média dos membros da unidade de consumo.
 
 Um domicílio contém ao menos uma unidade de consumo, e toda unidade de consumo pertence a um e apenas um domicílio. Analogamente, uma unidade de consumo contém ao menos uma pessoa, e toda pessoa pertence a uma e apenas uma unidade de consumo.
 
 ## Um exemplo prático
 
 Nessa discussão, dois registros são centrais. 
-O primeiro é DOMICÍLIO, que contém dados sobre todos os domicílios da amostra, como água corrente, coleta de lixo e energia elétrica. Nesse registro, cada linha é um domicílio (o total de linhas é o total de domicílios na amostra da POF). 
-O segundo é MORADOR, que contém dados de todas as pessoas da amostra, como idade, anos de estudo e se lancha na creche. Nesse registro, cada linha é uma pessoa, e o total de linhas é o total de pessoas na amostra da POF.
+O primeiro é DOMICILIO, que contém dados sobre todos os domicílios da amostra, como água corrente, coleta de lixo e energia elétrica. Nesse registro, cada linha é um domicílio (o total de linhas é o total de domicílios na amostra da POF). 
+O segundo é MORADOR, que contém dados de todas as pessoas da amostra, como idade e anos de estudo. Nesse registro, cada linha é uma pessoa, e o total de linhas é o total de pessoas na amostra da POF.
 Não há um registro "unidades de consumo".
 
 Assim, precisamos criar indicadores que permitam identificar os domicílios, unidades de consumo e pessoas entre os diferentes registros da POF (no último caso, nem sempre será possível).
@@ -56,9 +56,9 @@ pof_domicilio <- read_rds("./dados/pof_domicilio.rds")
 pof_morador <- read_rds("./dados/pof_morador.rds")
 ```
 
-Como a pof_domicilio tem o domicílio como maior nível de desagregação, só poderemos criar um identificador de domicílio (*id_dom*). Basicamente o id_dom é composto pelo identificador da UPA e pelo número do domicílio naquela UPA.
+Como a pof_domicilio tem o domicílio como maior nível de desagregação, só poderemos criar um identificador de domicílio (*id_dom*). Basicamente o *id_dom* é composto pelo identificador da UPA e pelo número do domicílio naquela UPA.
 
-A função `str_c` agrupa conjuntos de caracteres. É semelhante ao *CONCATENAR* do Excel.
+A função `str_c` agrupa conjuntos de caracteres.
 A função `n_distinct` retorna o número de valores distintos da variável e `n` retorna o número de elementos (no caso de um df, o número de linhas)
 
 ```{r}
@@ -176,6 +176,19 @@ pof_join <- pof_morador %>%
 
 Percebam que, aqui, eu usei o `left_join`, com *pof_morador* no primeiro argumento. Isso vem porque queremos preservar todas as linhas dessa tabela, para podermos separar os gastos por características das pessoas e das famílias.
 
+```{r}
+pof_morador %>% dim()
+```
+
+```{r}
+pof_aluguel_estimado %>% dim()
+```
+
+```{r}
+pof_join %>% dim()
+pof_join %>% colnames()
+```
+
 # Despesas
 
 Para começar a olhar as despesas, temos três arquivos centrais: 
@@ -201,6 +214,15 @@ A tabela indice apenas relaciona o nível de desagregação da despesa com sua r
 ```{r, message = FALSE, warning = FALSE, output.lines=9}
 indice
 ```
+
+
+
+Por fim, a tabela mais importante para nós é a tradutor, pois ela contém todas as informações que precisamos para conduzir uma análise de despesa.
+```{r, message = F, warning = F, output.lines = 9}
+tradutor
+```
+
+
 
 ```{r, message = FALSE, warning = FALSE, echo=FALSE}
 indice <- indice %>% 
@@ -247,14 +269,8 @@ fig_consumo
 ```
 
 
-
-Por fim, a tabela mais importante para nós é a tradutor, pois ela contém todas as informações que precisamos para conduzir uma análise de despesa.
-```{r, message = F, warning = F, output.lines = 9}
-tradutor
-```
-
 ## Códigos dos itens
-Na POF, cada item é registrado com um código de 7 dígitos, identificado pela variável V9001. Os dois primeiros dígitos são correspondentes ao quadro, enquanto os outros 5 são identificadores de cada item de despesa.
+Na POF, cada item é registrado com um código de 7 dígitos, identificado pela variável *V9001*. Os dois primeiros dígitos são correspondentes ao quadro, enquanto os outros 5 são identificadores de cada item de despesa.
 Porém, olhando a tabela cadastro, vemos que alguns código possuem menos de 7 dígitos. Isso é causado pela mesma questão que aconteceu com as variáveis indicadoras. Se o número do quadro é 6 (por exemplo), o código fica com 6 dígitos (porque o dado não carrega como "06").
 Então, para evitar quaisquer problemas, vamos transformar todos os códigos em 7 dígitos
 ```{r, message = F, warning = F, output.lines = 9}
@@ -277,7 +293,8 @@ cadastro %>%
   mutate(n = n()) %>% 
   ungroup() %>% 
   filter(n > 1) %>% 
-  arrange(n, codigo_5)
+  arrange(n, codigo_5) %>% 
+  select(quadro, codigo_do_produto, codigo_7, codigo_5, descricao_do_produto, n)
 
 ```
 
@@ -313,7 +330,7 @@ Assim, além do código, precisamos acertar a variável na hora de calcular as d
 ## Deflação e anualização
 
 Os últimos pontos antes de realizar a análise das despesas são a deflação e a anualização.
-Como dito na primeira aula, as informações da POF se distribuem ao longo de 24 meses, sendo estabelecido o dia 15 de janeiro de 2018 como data de refrência. Assim, todos os valores precisam ser deflacionados para representarem valores médios desta data. Por sorte, o IBGE já disponibiliza os valores deflacionados: são as variáveis que olhamos acima e que estão na tabela despesa.
+Como dito na primeira aula, as informações da POF se distribuem ao longo de 24 meses, sendo estabelecido o dia 15 de janeiro de 2018 como data de referência. Assim, todos os valores precisam ser deflacionados para representarem valores médios desta data. O IBGE já disponibiliza os valores deflacionados: são as variáveis que olhamos acima e que estão na tabela despesa.
 
 A anualização, por sua vez, vem do fato de existirem 4 períodos de referência para despesas: 7, 30 e 90 dias e 12 meses. Respectivamente, precisamos multiplicar o valor da despesa em cada um desses períodos por 52, 12, 4 ou 1 (variável `FATOR_ANUALIZACAO`). Para alguns itens de despesas de 12 meses (`FATOR_ANUALIZACAO == 1`), temos também o número de meses de realização da despesa (variável `V9011`).
 Para saber quais itens se encaixam nesse segundo caso, o dicionário de variáveis explicita os quadros que precisam da variável `V9011` - podemos também olhar no código fornecido pelo IBGE *memoria_de_calculo/R/Tabela de Despesa Geral.R*.
@@ -337,7 +354,7 @@ Basicamente, o processo se resume em:
 Como as possibilidades são virtualmente infinitas, vamos focar na [tabela 6715 do SIDRA](https://sidra.ibge.gov.br/tabela/6715).
 
 ## Lendo os arquivos de microdados
-Já vimos como ler os microdados e até ja criamos arquivos *.rds*. Em um momento futuro, podemos salvar ainda mais tempo e espaço criando arquivos *.rds* de microdados apenas com as colunas relevantes para a análise de despesa, mas isso fica na conta de caa um.
+Já vimos como ler os microdados e até ja criamos arquivos *.rds*. Em um momento futuro, podemos salvar ainda mais tempo e espaço criando arquivos *.rds* de microdados apenas com as colunas relevantes para a análise de despesa, mas isso fica na conta de cada um.
 O que precisa ser feito agora é saber quais os arquivos de microdados relevantes.
 
 Basicamente, precisamos de todos os registros da POF que possuem alguma das variáveis explicitadas na tabela tradutor. A saber:
@@ -414,7 +431,7 @@ pof_outros_rendimentos <- pof_outros_rendimentos %>%
   mutate(codigo_5 = str_sub(V9001, 1, -3))
 ```
 
-Vamos checar se tudos têm 5 dígitos:
+Vamos checar se todos têm 5 dígitos:
 
 ```{r}
 pof_aluguel_estimado %>% mutate(n_cod = nchar(codigo_5)) %>% distinct(n_cod)

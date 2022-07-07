@@ -136,7 +136,8 @@ pof_despesa_ex2a <- pof_despesa %>%
 
 ```{r}
 all_equal(pof_despesa_ex2, pof_despesa_ex2a)
-bind_rows(pof_despesa_ex2[57487,],pof_despesa_ex2a[57487,])
+bind_rows(pof_despesa_ex2[57487,] %>% select(c("id_dom", "id_uc", "despesa_consumo"), everything()),
+          pof_despesa_ex2a[57487,]) %>% select(c("id_dom", "id_uc", "despesa_consumo"), everything())
 ```
 
 

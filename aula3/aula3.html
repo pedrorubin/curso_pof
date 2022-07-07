@@ -470,15 +470,17 @@ mesmo)</p>
   distinct(id_uc, .keep_all = T)</code></pre>
 <pre class="r"><code>all_equal(pof_despesa_ex2, pof_despesa_ex2a)</code></pre>
 <pre><code>## [1] &quot;- Rows in x but not in y: 57487\n- Rows in y but not in x: 57487\n&quot;</code></pre>
-<pre class="r"><code>bind_rows(pof_despesa_ex2[57487,],pof_despesa_ex2a[57487,])</code></pre>
+<pre class="r"><code>bind_rows(pof_despesa_ex2[57487,] %&gt;% select(c(&quot;id_dom&quot;, &quot;id_uc&quot;, &quot;despesa_consumo&quot;), everything()),
+          pof_despesa_ex2a[57487,]) %&gt;% select(c(&quot;id_dom&quot;, &quot;id_uc&quot;, &quot;despesa_consumo&quot;), everything())</code></pre>
 <pre><code>## # A tibble: 2 × 18
-##   id_dom  id_uc codigo_5 valor_anualizado PESO_FINAL nivel_0 descricao_0 nivel_1
-##   &lt;chr&gt;   &lt;chr&gt; &lt;chr&gt;               &lt;dbl&gt; &lt;chr&gt;        &lt;dbl&gt; &lt;chr&gt;         &lt;dbl&gt;
-## 1 330247… 3302… 11020              1574.  1157.5256…       0 Despesa To…       2
-## 2 330247… 3302… 15001                93.1 1157.5256…       0 Despesa To…       1
-## # … with 10 more variables: descricao_1 &lt;chr&gt;, nivel_2 &lt;dbl&gt;,
-## #   descricao_2 &lt;chr&gt;, nivel_3 &lt;dbl&gt;, descricao_3 &lt;chr&gt;, nivel_4 &lt;dbl&gt;,
-## #   descricao_4 &lt;chr&gt;, nivel_5 &lt;dbl&gt;, descricao_5 &lt;chr&gt;, despesa_consumo &lt;dbl&gt;</code></pre>
+##   id_dom      id_uc despesa_consumo codigo_5 valor_anualizado PESO_FINAL nivel_0
+##   &lt;chr&gt;       &lt;chr&gt;           &lt;dbl&gt; &lt;chr&gt;               &lt;dbl&gt; &lt;chr&gt;        &lt;dbl&gt;
+## 1 33024796010 3302…           8880. 11020              1574.  1157.5256…       0
+## 2 33024796010 3302…           8880. 15001                93.1 1157.5256…       0
+## # … with 11 more variables: descricao_0 &lt;chr&gt;, nivel_1 &lt;dbl&gt;,
+## #   descricao_1 &lt;chr&gt;, nivel_2 &lt;dbl&gt;, descricao_2 &lt;chr&gt;, nivel_3 &lt;dbl&gt;,
+## #   descricao_3 &lt;chr&gt;, nivel_4 &lt;dbl&gt;, descricao_4 &lt;chr&gt;, nivel_5 &lt;dbl&gt;,
+## #   descricao_5 &lt;chr&gt;</code></pre>
 <ol start="2" style="list-style-type: decimal">
 <li></li>
 </ol>

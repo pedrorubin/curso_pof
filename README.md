@@ -21,7 +21,7 @@ Todos os arquivos necessários estão nesse repositório, exceto os microdados d
 * Aula 3: Cálculos com despesas
   * Médias por família Brasil e outras subdivisões, replicação da [tabela 6715 do SIDRA](https://sidra.ibge.gov.br/Tabela/6715)
 * Aula 4: Prática
-  * Sem código - cada participante fez o que mais adequava suas necessidades e desejos com a POF
+  * Sem código - cada participante fez o que mais se adequava às suas necessidades e desejos com a POF
 * Aula 5: Análise de dados complexos
   * Funcionamento dos pacotes `survey`e `srvyr` - como criar objetos em R que levem em conta o desenho amostral e a pós-estratificação
   * Cálculo de coeficientes de variação

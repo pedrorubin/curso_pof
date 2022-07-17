@@ -1,10 +1,9 @@
 ---
-title: 'Curso POF: Aula 5'
+title: 'Curso POF: Aula 5 - versão 2.0'
 author: "Pedro Rubin"
-date: '2022-05-23'
+date: '18/07/2022'
 output: html_document
 ---
-
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -32,57 +31,465 @@ knit_hooks$set(output = function(x, options) {
   x <- paste(c(x, ""), collapse = "\n")
   hook_output(x, options)
 })
+
+options(scipen = 20)
 ``` 
 
+# Antes de antes de começar
+Essa é uma versão revisada da aula 5 original. Existiam algumas dúvidas em relação à análise dos microdados da POF utilizando o desenho amostral, que foram corrigidas aqui. Contudo, mais dúvidas podem persistir - caso algo esteja equivocado, por favor me avisem em prubincosta@gmail.com. 
+Ou no twitter [@pedrorubincosta](http://www.twitter.com/pedrorubincosta).
+
+As fontes consultadas para essa versão revisada foram:
+
+* Lumley, T. (2010) Complex Surveys: A Guide to Analysis Using R. Wiley, New Jersey
+* Lumley, T. (2021) Package 'survey' - Analysis of Complex Survey Samples. Disponível em [https://cran.r-project.org/web/packages/survey/survey.pdf](https://cran.r-project.org/web/packages/survey/survey.pdf)
+* Ellis, G. et al. (2022) Package 'srvyr' - 'dplyr'-Like Syntax for Summary Statistics of Survey Data. Disponível em [https://cran.r-project.org/web/packages/srvyr/srvyr.pdf](https://cran.r-project.org/web/packages/srvyr/srvyr.pdf)
+* Pessoa, P. Analyze Survey Data for Free - Pesquisa de Orçamentos Familiares (POF), organizado por Damico, A. Disponível em [http://asdfree.com/pesquisa-de-orcamentos-familiares-pof.html](http://asdfree.com/pesquisa-de-orcamentos-familiares-pof.html)
+* Welle, A. [https://gist.github.com/arthurwelle/a53499c5d33fa7d9aa75d7ece8f7d84d](https://gist.github.com/arthurwelle/a53499c5d33fa7d9aa75d7ece8f7d84d)
+* Essas duas páginas na internet: [https://stats.stackexchange.com/questions/146841/using-post-stratification-weights-in-r-survey-package#comment992392_147012](https://stats.stackexchange.com/questions/146841/using-post-stratification-weights-in-r-survey-package#comment992392_147012) e [https://github.com/gergness/srvyr/issues/50](https://github.com/gergness/srvyr/issues/50)
+
+Todas as páginas de internet foram acessadas no dia 15/07/2022
 
 # Antes de começar
-Precisamos checar se os pacotes `survey` e `srvyr` estão instalados
+Precisamos checar se os pacotes `survey`, `srvyr` e `convey` estão instalados
 ```{r, message = FALSE, warning=FALSE}
 
 # find.package('survey', quiet=TRUE)
 # find.package('srvyr', quiet=TRUE)
+# find.package('convey', quiet=TRUE)
 # 
-# install.packages(c("survey", "srvyr"))
+# install.packages(c("survey", "srvyr", "convey))
 
 library(tidyverse)
 library(survey)
 library(srvyr)
+library(convey)
 ```
 
-
 # Desenho amostral
-Até o momento, nos preocupamos apenas com o valor pontual dos nossos cálculos (população, despesas etc). No entando, sendo a POF uma pesquisa amostral, esses valores são estimativas, associados a erros-padrão, intervalos de confiança e outras medidas afins. Para obtermos essas informações, precisamos levar em conta o desenho amostral, o que é feito através dos pacotes `survey` e `srvyr`. 
+Até o momento, nos preocupamos apenas com a estimativa pontual dos nossos cálculos (população, despesas etc). No entando, sendo a POF uma pesquisa amostral, esses valores estão associados a erros-padrão, intervalos de confiança e outras medidas afins. Para obtermos essas informações, precisamos levar em conta o desenho amostral, o que é feito através dos pacotes `survey` e `srvyr`. 
 
-Vamos carregar nossas bases:
+O processo correto consiste em:
+
+* Carregar o df de microdados da POF (com referência ao *pof_morador*) e o arquivo *./documentacao/Pos_estratos_totais.xlsx*, juntando-os pela variável *COD_UPA* (*pof_posestratos*)
+* Transformar esse df em um objeto `survey.design` (*pof_survey_pre*)
+* Criar um novo objeto que leve em conta a pós-estratificação (*pof_survey_pos*)
+* Transformar o *pof_survey_pos* com o pacote `srvyr`, para usar a linguagem do `tidyverse` - mais especificamente, do `dplyr` (*pof_srvyr*)
+
+Alguns comentários:
+
+* Não podemos retirar nenhuma linha do *pof_morador* antes de terminar o processo acima. Quaisquer filtros devem ser aplicados depois.
+* Sempre que possível, outras manipulações (criar e mudar colunas) devem ser feitas antes de começar o processo
+* Para não ficar muito pesado, recomendo só deixar as colunas que precisamos usar - são cálculos que podem demorar.
+
+## O que vamos fazer
+
+* Primeiro, vamos fazer alguns exercícios simples para demonstrar como fazer diferentes cálculos.
+* Depois, vamos calcular alguns coeficientes de variação disponibilizados pelo IBGE.
+* Por fim, vamos calcular percentis e o gini da renda e do consumo (amos per capita), comparando com os divulgados em [Hoffmann e Vaz (2020)](https://iepecdg.com.br/wp-content/uploads/2020/06/DESIGUALDADE_POF2017-18.pdf)
+
+# Carregando as bases
+
+## Transformando o dataframe
+
+Primeiro, vamos carregar o *pof_despesa* e agregar a despesa total por uc:
+
 ```{r}
-pof_despesa <- read_rds("./dados/pof_despesa.rds")
+
+pof_despesa <- read_rds("./dados/pof_despesa.rds") %>% 
+  group_by(id_uc) %>% 
+  summarise(despesa_total_mensal = sum(valor_anualizado, na.rm = T)/12)
+
+```
+
+Agora vamos carregar o *pof_morador*, fazer algumas alterações e juntar com o pof_despesa:
+
+```{r}
 pof_morador <- read_rds("./dados/pof_morador.rds") %>% 
   mutate(NUM_DOM = str_pad(NUM_DOM, 2, "left", "0"),
          NUM_UC = str_pad(NUM_UC, 2, "left", "0"),
          COD_INFORMANTE = str_pad(COD_INFORMANTE, 2, "left", "0"),
          id_dom = str_c(COD_UPA, NUM_DOM),
          id_uc  = str_c(COD_UPA, NUM_DOM, NUM_UC),
-         id_pes = str_c(COD_UPA, NUM_DOM, NUM_UC, COD_INFORMANTE)) %>% 
-  mutate(across(.fns = as.numeric)) %>% filter(V0306 == "1")
+         id_pes = str_c(COD_UPA, NUM_DOM, NUM_UC, COD_INFORMANTE),
+         PESO = as.numeric(PESO),
+         PESO_FINAL = as.numeric(PESO_FINAL),
+         RENDA_TOTAL = as.numeric(RENDA_TOTAL),
+         V0403 = as.numeric(V0403)) %>% 
+  left_join(pof_despesa, by = 'id_uc')
+```
+Até aqui, nada fora do padrão.
+
+Vamos agora criar uma variável *id* que tem valor 1 para todas as linhas e outra chamada *grupo_renda*, de acordo com os valores utilizados pelo IBGE
+```{r}
+pof_morador <- pof_morador %>% 
+  mutate(id = 1,
+         grupo_renda = case_when(RENDA_TOTAL <= 1908 ~ 1,
+                                 RENDA_TOTAL > 1908 &
+                                   RENDA_TOTAL <= 2862 ~ 2,
+                                 RENDA_TOTAL > 2862 &
+                                   RENDA_TOTAL <= 5724 ~ 3,
+                                 RENDA_TOTAL > 5724 &
+                                   RENDA_TOTAL <= 9540 ~ 4,
+                                 RENDA_TOTAL > 9540 &
+                                   RENDA_TOTAL <= 14310 ~ 5,
+                                 RENDA_TOTAL > 14310 &
+                                   RENDA_TOTAL <= 23850 ~ 6,
+                                 RENDA_TOTAL > 23850 ~ 7))
+```
+
+A próxima etapa é criar a renda e a despesa per capita. Como vimos antes, a construção dessas variáveis requer a retirada de pessoas com `V0306 == '18'` ou `V0306 == '19'` (Condição no domícilio igual a "Empregado(a) doméstico(a)" ou "Parente do(a) empregado(a) doméstico(a)"). Mas não podemos tirar essas pessoas do df. Então vamos criar uma variável auxiliar que toma valor 0 quando `V0306 %in% c('18', '19')` e 1 caso contrário. A soma dessa variável por família nos dará o denominador para criar as variáveis per capita.
+
+```{r}
+pof_morador <- pof_morador %>%
+  mutate(chave_uc = case_when(V0306 %in% c('18','19') ~ 0,
+                              TRUE ~ 1)) %>% 
+  group_by(id_uc) %>% 
+  mutate(n_uc_filter = sum(chave_uc)) %>% 
+  ungroup() %>% 
+  mutate(renda_pc = RENDA_TOTAL / n_uc_filter,
+         despesa_pc = despesa_total_mensal / n_uc_filter)
+```
+
+A última coisa que precisamos fazer com o *pof_morador* é adicionar os pós-estratos e selecionar as colunas que precisamos:
+
+```{r}
+pos_estratos <- readxl::read_xlsx(path = "./documentacao/pos_estratos_totais.xlsx", 
+                                  sheet = "Planilha1",
+                                  skip = 5,
+                                  col_types = 'text')
+
+pof_posestratos <- pof_morador %>% 
+  left_join(pos_estratos, by = c("COD_UPA" = "COD_UPA(UF+SEQ+DV)")) %>% 
+  rename("ESTRATO_POF" = ESTRATO_POF.x) %>%  # isso aqui nao precisava, ver suffix na função left join
+  select(id_uc, UF, ESTRATO_POF, COD_UPA, 
+         V0306, V0403, V0409, V0414, 
+         PESO, PESO_FINAL, 
+         RENDA_TOTAL, renda_pc,
+         despesa_total_mensal, despesa_pc,
+         id, grupo_renda,
+         pos_estrato, TOTAL_PESSOAS_REFERENCIA)
+```
+
+Ok, terminamos as modificações necessárias ao *pof_morador* e podemos começar a construir o objeto que será utilizado para considerar o desenho amostral.
+
+## Criando objeto `survey`
+
+Pré-estratificação:
+```{r}
+pof_survey_pre <-
+  survey::svydesign(
+    id = ~COD_UPA ,
+    strata = ~ESTRATO_POF ,
+    weights = ~PESO , #note que é o peso original, não o peso final
+    data = pof_posestratos ,
+    nest = TRUE
+  )
+```
+
+Pós-estratificação:
+```{r}
+population_totals <- pos_estratos %>%
+  distinct(pos_estrato, .keep_all = T) %>% 
+  mutate(Freq = as.numeric(TOTAL_PESSOAS_REFERENCIA)) %>% 
+  select(pos_estrato, Freq)
+
+pof_survey_pos <-
+  survey::postStratify(
+    design = pof_survey_pre ,
+    strata = ~pos_estrato ,
+    population = population_totals
+  )
+```
+
+Aqui já poderíamos começar a analisar os dados. Mas eu considero que vale a pena fazer mais uma transformação usando o pacote `srvyr`. Basicamente, esse pacote permite o uso da linguagem do `tidyverse` (mais especificamente do `dplyr`).
+
+```{r}
+pof_srvyr <- pof_survey_pos %>%
+  as_survey()
+
+class(pof_srvyr)
+```
+
+# Primeira etapa de cálculos: somas, médias, razões e variáveis de dispersão
+
+## Soma
+Com isso, podemos começar a fazer alguns cálculos.
+Primeiro, vamos pegar o número de famílias.
+
+Até agora, estávamos fazendo assim:
+```{r}
+pof_morador %>%
+  filter(V0306 == '1') %>%
+  summarise(populacao = sum(PESO_FINAL))
+```
+
+Usando o *pof_srvyr*, vamos usar a função `survey_total`:
+
+```{r}
+pof_srvyr %>%
+  filter(V0306 == '1') %>%
+  summarise(populacao = survey_total())
+```
+
+Notem que o total é igual. Mas agora, quando usamos o `srvyr`, temos também uma variável de dispersão. Se não especificarmos qual queremos, a função retorna o erro-padrão. Podemos estar interessados em outras variáveis, como o coeficiente de variação ('cv'), a variância ('var') ou o intervalo de confiança ('ci'). No intervalo de confiança, o padrão é 95%, mas podemos escolher o valor que quisermos. Para nossos propósitos, a mais relevante é o coeficiente de variação, divulgada pelo IBGE para alguns valores.
+
+### Coeficiente de variação
+
+```{r}
+pof_srvyr %>%
+  filter(V0306 == '1') %>%
+  summarise(populacao = survey_total(vartype = "cv"))
+```
+
+### Variância
+
+```{r}
+pof_srvyr %>%
+  filter(V0306 == '1') %>%
+  summarise(populacao = survey_total(vartype = "var"))
+```
+
+### Intervalo de confiança
+Por padrão, o nível é 95%, mas podemos escolher o mais adequado com o argumento `level`
+```{r}
+pof_srvyr %>%
+  filter(V0306 == '1') %>%
+  summarise(populacao = survey_total(vartype = "ci"))
+
+pof_srvyr %>%
+  filter(V0306 == '1') %>%
+  summarise(populacao = survey_total(vartype = "ci",
+                                     level = 0.99))
+
+```
+
+### Juntando várias em uma só chamada
+
+Podemos também juntar várias chamadas em uma só:
+```{r}
+pof_srvyr %>%
+  filter(V0306 == '1') %>%
+  summarise(populacao = survey_total(vartype = c("se", "cv", "ci"),
+                                     level = c(0.9)))
+```
+
+## Média
+
+Vamos agora calcular a média de idade da população. Anteriormente, faríamos:
+```{r}
+pof_morador %>%
+  summarise(idade_media = sum(V0403 * PESO_FINAL)/sum(PESO_FINAL))
+```
+
+Agora, podemos fazer (função `survey_mean`)
+```{r}
+pof_srvyr %>%
+  summarise(idade_media = survey_mean(V0403))
+```
+
+Novamente, o resultado pontual é o mesmo e temos nossa medida de dispersão.
+
+Com `survey_mean`, podemos também calcular a frequência de grupos na população. Dividindo a população acima de 14 anos entre aqueles que sabem ou não ler ou escrever, temos os respectivos percentuais:
+
+Antes:
+```{r}
+pof_morador %>%
+  filter(V0403 >= 14) %>% 
+  mutate(populacao = sum(PESO_FINAL)) %>% 
+  group_by(V0414) %>%
+  summarise(V0414_pct = sum(PESO_FINAL) / unique(populacao))
+```
+
+Agora:
+```{r}
+pof_srvyr %>%
+  filter(V0403 >= 14) %>% 
+  group_by(V0414) %>%
+  summarise(V0414_pct = survey_mean(vartype = 'ci'))
+```
+
+E também médias de variáveis por grupo. Separando por novamente por saber ou não ler e escrever, vamos calcular a idade média das pessoas acima de 14 anos
+
+Antes:
+```{r}
+pof_morador %>%
+  filter(V0403 >= 14) %>% 
+  group_by(V0414) %>%
+  summarise(idade_media = sum(V0403 * PESO_FINAL) / 
+              sum(PESO_FINAL))
+```
+
+Agora:
+```{r}
+pof_srvyr %>%
+  filter(V0403 >= 14) %>% 
+  group_by(V0414) %>%
+  summarise(idade_media = survey_mean(V0403, vartype = 'cv'))
+```
+
+## Razão
+
+Podemos também calcular razões com a função `survey_ratio`. Por exemplo, vamos calcular o percentual de crianças na população.
+Nessa função, precisamos incluir o numerador e o denominador (que botamos nossa coluna de 1 chamada *id*)
+
+Antes:
+```{r}
+pof_morador %>%
+  mutate(crianca = case_when(V0403 < 14 ~ 1,
+                             TRUE ~ 0)) %>%
+  summarise(crianca_pct = sum(PESO_FINAL[which(crianca == 1)]) / 
+              sum(PESO_FINAL))
+```
+Agora:
+```{r}
+pof_srvyr %>%
+  mutate(crianca = case_when(V0403 < 14 ~ 1,
+                             TRUE ~ 0)) %>%
+  summarise(crianca_pct = survey_ratio(crianca, id))
+```
+
+
+# Segunda etapa: alguns resultados disponibilizados pelo IBGE
+
+As tabelas que vamos usar de referência são as Tabelas de Coeficientes, para Rendimentos e Despesas, [disponibilizadas pelo IBGE](https://www.ibge.gov.br/estatisticas/sociais/saude/24786-pesquisa-de-orcamentos-familiares-2.html?edicao=25578&t=resultados)
+
+## Rendimento total e variação patrimonial
+
+```{r}
+pof_srvyr %>% 
+  filter(V0306 == '1') %>% 
+  summarise(rend = survey_mean(RENDA_TOTAL, vartype = 'cv'))
 ```
 
 ```{r}
-pof <- as_survey_design(.data = pof_morador,
-                        strata = COD_UPA,
-                        weights = PESO_FINAL)
+pof_srvyr %>% 
+  filter(V0306 == '1') %>% 
+  group_by(grupo_renda) %>% 
+  summarise(rend = survey_mean(RENDA_TOTAL, vartype = 'cv'))
+```
+
+Os valores são bastante similares
+
+
+## Despesa total
+
+```{r}
+pof_srvyr %>% 
+  filter(V0306 == '1') %>% 
+  summarise(desp = survey_mean(despesa_total_mensal, vartype = 'cv'))
+```
+
+
+```{r}
+pof_srvyr %>% 
+  filter(V0306 == '1') %>% 
+  group_by(grupo_renda) %>% 
+  summarise(desp = survey_mean(despesa_total_mensal, vartype = 'cv'))
+```
+Novamente, os valores são muito próximos.
+
+# Terceira etapa: valores per capita, percentis e gini
+
+De acordo com as tabelas 1 e 3 (páginas 10 e 17) de [Hoffmann e Vaz (2020)](https://iepecdg.com.br/wp-content/uploads/2020/06/DESIGUALDADE_POF2017-18.pdf), vamos calcular o valor médio, os percentis 25, 50, 75, 90, 95, 99 e o índice de Gini para a renda e a despesa familiar per capita
+
+## Renda familiar per capita (rfpc)
+
+### Renda média
+
+```{r}
+
+pof_srvyr %>% 
+  filter(V0306 != '18' & V0306 != '19') %>% 
+  summarise(rfpc_media = survey_mean(renda_pc))
+
+```
+
+### Percentis
+
+```{r}
+
+pof_srvyr %>%
+  filter(V0306 != "18" & V0306 != "19") %>%
+  summarise(rfpc = survey_quantile(renda_pc, 
+                            quantiles = c(0.25, 0.50, 0.75,
+                                          0.90, 0.95, 0.99)))
+
+```
+
+### Gini e curva de Lorenz
+Para o Gini e a curva de Lorez, precisamos transformar nosso objeto `survey.design` com o pacote `convey`:
+
+```{r}
+
+pof_convey <- pof_srvyr %>%
+  filter(V0306 != "18" & V0306 != "19") %>% 
+  convey_prep()
+
+svygini(~renda_pc, pof_convey)
+
+
+```
+
+```{r, output.lines=0}
+svylorenz(~renda_pc, 
+          pof_convey,
+          quantiles = seq( 0, 1, .01 ),
+          curve.col = "darkblue")
+```
+
+
+## Despesa familiar per capita (dfpc)
+
+
+### despesa média
+
+```{r}
+
+pof_srvyr %>% 
+  filter(V0306 != '18' & V0306 != '19') %>% 
+  summarise(dfpc_media = survey_mean(despesa_pc))
+
+```
+
+### Percentis
+
+```{r}
+
+pof_srvyr %>%
+  filter(V0306 != "18" & V0306 != "19") %>%
+  summarise(dfpc = survey_quantile(despesa_pc, 
+                            quantiles = c(0.25, 0.50, 0.75,
+                                          0.90, 0.95, 0.99)))
+
+```
+
+### Gini e curva de Lorenz
+Para o Gini e a curva de Lorez, precisamos transformar nosso objeto `survey.design` com o pacote `convey`:
+
+```{r}
+
+# pof_convey <- pof_srvyr %>%
+#   filter(V0306 != "18" & V0306 != "19") %>% 
+#   convey_prep()
+
+svygini(~despesa_pc, pof_convey)
+
+
+```
+
+```{r, output.lines=0}
+svylorenz(~despesa_pc, 
+          pof_convey,
+          quantiles = seq( 0, 1, .01 ),
+          curve.col = "darkblue")
 ```
 
 
 
+<br>
 
 
-
-
-
-
-
-
-
-
+<font size="10"> OBRIGADO </font>
 
 

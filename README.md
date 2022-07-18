@@ -10,6 +10,11 @@ Meus contatos são:
 * Email: prubincosta@gmail.com
 * Twitter: [@pedrorubincosta](http://www.twitter.com/pedrorubincosta)
 
+## Observação
+
+O curso contou com alunos de diversos níveis em R - por isso, adaptei o código para facilitar a compreensão.
+Para um exemplo de como trabalho com a POF, ver o pacote que criei https://github.com/pedrorubin/pof2017package
+
 ## Sobre o curso
 
 Todos os arquivos necessários estão nesse repositório, exceto os microdados da POF originais em .txt, que podem ser baixados [aqui](https://www.ibge.gov.br/estatisticas/sociais/saude/24786-pesquisa-de-orcamentos-familiares-2.html?=&t=microdados). Basta descompatar e colocar esses dados na pasta dados.
